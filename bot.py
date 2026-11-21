@@ -1,37 +1,40 @@
-"""Mech Royale bot v4: survive longer.
+"""Mech Royale bot v5: more kills per match.
 
-v4, on top of v3:
-  1. Break off below RETREAT_FRAC of max HP: legs head for a spot (no closer to any visible enemy,
-     inside the zone) where a building or the ground hides us from every visible enemy, then stand
-     still there; hold fire (unless an enemy is within CORNERED_M) so the 5 s regen timer can run.
-     Fight again at RESUME_FRAC. The torso keeps facing the threat (front armor).
-  2. Quiet: with no enemy mech in view, never move faster than SLOW_FRAC of the footstep speed, except
-     when the zone forces it (outside / near the edge / late for the safe spot).
-  3. NPC drones: legs steer around their 45 m firing range (NPC_AVOID_M), except a drone we are
-     fighting (one that attacked us while we are not retreating).
-  4. Zone first: zone hurry overrides retreat, cover spots and NPC detours stay inside the current and
-     coming circle with EDGE_MARGIN_M to spare, and outside the zone nothing deflects the run back.
-  5. Safety net: the fallback still answers an upgrade offer; non-finite numbers anywhere in the
-     action (or a debug drawing) fall back instead of sending invalid JSON.
+v5 = v3's strategy (v4's retreat, quiet walk and NPC avoidance dropped) plus:
+  1. Target choice: mechs before NPC drones. Among visible mechs with a clear shot in reach, the lowest
+     HP (sticky: a new one must be STICKY_HP lower). A mech hitting us (last HIT_RECENT_S) takes the
+     target over, unless the current target is below FINISH_FRAC of its HP: finish that kill first.
+  2. Strafe while fighting a target in reach: legs move perpendicular to it at full speed, reversing
+     every STRAFE_MIN_S..STRAFE_MAX_S (random, seeded), and early before a wall or the zone edge.
+  3. Dodge: a visible gun/NPC bullet that will pass within DODGE_M of us in the next DODGE_HORIZON_S
+     -> step sideways, perpendicular to its path, on the side we are already off its line.
+  4. Early laser fetch: before the first zone phase ends, with no laser held, a visible laser pickup
+     (within FETCH_MAX_M, inside the zone) and no enemy mech within FETCH_SAFE_M -> walk to it. A mortar
+     in slot 1 is swapped out for it.
+  5. Circular aim: each mech's turn rate is estimated from its velocity heading between observations;
+     predictions (gun lead, laser, mortar) follow that arc.
+  Legs: zone hurry > dodge > laser fetch > strafe > v2 zone walk.
+Kept from v4 (fixes, not strategy): the safety net answers an upgrade offer; non-finite numbers in the
+action or a debug drawing fall back instead of sending invalid JSON; world.py's grid and clipping.
 
 v3, on top of v2 (safety net + zone awareness):
-  1. Face the attacker: damage events are remembered for a few seconds. The visible attacker that did
-     the most damage becomes the target; if it can't be seen, the torso turns to the hit's bearing
-     (hits from outside the front arc do 1.5x).
+  1. Face the attacker: damage events are remembered for a few seconds; if the attacker can't be seen,
+     the torso turns to the hit's bearing (hits from outside the front arc do 1.5x).
   2. Lead: the gun aims where the target will be when the bullet (weapon speed, no drop) gets there,
      allowing for one decision of latency and gravity on airborne targets.
   3. Clear shot only: a weapon fires only when the torso's actual aim is on the solution and the line
-     (or the mortar arc) misses every building and the terrain (world.py). Reload when the magazine
-     is empty and no enemy mech is in view.
-  4. Loot: take a laser (preferred) or mortar lying within 4 m into the empty slot. The laser charges
-     on a clear target and is released when fully charged and on target; the mortar is lobbed on a
-     low arc when its arc is clear.
+     (or the mortar arc) misses every building and the terrain (world.py). Reload a partly used
+     magazine when no enemy mech is in view and nothing is engaged.
+  4. Loot: take a laser (preferred) or mortar lying within 4 m. The laser charges on a clear target and
+     is released when fully charged and on target; the mortar is lobbed on a low arc when its arc is
+     clear.
   5. Upgrades: "armor" when it is offered, otherwise choice 0.
 """
 import atexit
 import gc
 import json
 import math
+import random
 import time
 
 import mechfight as mf
@@ -44,7 +47,7 @@ ARRIVE_M = 3.0         # closer than this to the spot = stand still
 SLOW_FRAC = 0.9        # slow walk = 90% of sound.step_speed: no footstep sounds
 SPARE_S = 10.0         # walk at full speed if slow walking would reach the spot later than shrink_end - SPARE_S
 
-# --- combat tuning ---
+# --- combat tuning (v3) ---
 LATENCY_S = 0.05        # the shot leaves somewhere in the 0.1 s after this observation: aim for the middle
 ATTACKER_WINDOW_S = 4.0  # damage older than this is forgotten
 FACE_S = 2.0            # keep facing an unseen attacker's bearing this long after its last hit
@@ -57,17 +60,23 @@ MORTAR_MIN_M = 25.0     # never lob closer than this (own splash, knock-back)
 MORTAR_RANGE_ERR_M = 3.0  # fire the mortar when the pitch error moves the impact less than this
 UPGRADE = "armor"
 
-# --- survival tuning (v4) ---
-RETREAT_FRAC = 0.5      # break off below this fraction of max HP
-RESUME_FRAC = 0.9       # ...and fight again once regenerated to this
-CORNERED_M = 20.0       # while retreating, still shoot back at an enemy this close
-COVER_RADII = (12.0, 24.0, 40.0, 60.0)  # cover spots searched on these rings around us
-COVER_DIRS = 12         # spots per ring
-COVER_EVERY = 5         # decisions between cover searches (the chosen spot is kept meanwhile)
-COVER_ARRIVE_M = 2.0
-MAX_THREATS = 3         # hide from at most this many (nearest) enemies
-NPC_AVOID_M = 50.0      # NPC drones shoot mechs within 45 m: stay this far from drones we don't fight
-NPC_LOOK_M = (5.0, 10.0, 15.0, 20.0)  # judge a heading by these points ahead
+# --- kills tuning (v5) ---
+MAX_CANDIDATES = 4      # clear-shot checks for at most this many nearest mechs per decision
+STICKY_HP = 100.0       # switch to another clear mech only if it has at least this much less HP
+HIT_RECENT_S = 2.0      # a mech that damaged us this recently is "hitting us"
+FINISH_FRAC = 0.3       # ...but a current target below this fraction of its HP is finished first
+STRAFE_MIN_S, STRAFE_MAX_S = 1.0, 2.0  # strafe direction lasts a random time in this range
+STRAFE_LOOK_M = 6.0     # reverse early if this far along the strafe is a wall or near the zone edge
+DODGE_M = 4.0           # dodge a bullet that will pass closer than this to our center
+DODGE_HORIZON_S = 1.0   # ...within this many seconds
+FETCH_MAX_M = 150.0     # walk to a visible laser pickup at most this far away
+FETCH_SAFE_M = 60.0     # ...only with no enemy mech this close
+FETCH_ARRIVE_M = 1.0
+EARLY_DEFAULT_S = 110.0  # end of the first zone phase if the config doesn't say
+OMEGA_MAX = 2.5         # rad/s cap on an estimated turn rate
+OMEGA_ALPHA = 0.5       # smoothing of the turn-rate estimate
+MOTION_DT_MAX = 0.25    # observations further apart than this don't give a turn rate
+MOTION_MIN_SPEED = 2.0  # slower than this, the heading is noise
 
 # --- safety net (v2) ---
 SLOW_DECISION_MS = 10.0  # log any decision slower than this
@@ -110,8 +119,17 @@ def aimed(aim, yaw, pitch, dist, radius, height):
             and abs(aim[1] - pitch) * dist <= AIM_TOL * height / 2)
 
 
+def _hp(m):
+    hp = m.get("hp")
+    return hp if isinstance(hp, (int, float)) else (m.get("max_hp") or 1400.0)
+
+
+def _hp_frac(m):
+    return _hp(m) / (m.get("max_hp") or 1400.0)
+
+
 class Bot:
-    name = "mech-royale-bot v4"
+    name = "mech-royale-bot v5"
 
     def __init__(self, hello: mf.Hello):
         cfg = hello["config"]
@@ -122,10 +140,18 @@ class Bot:
         self.size_per_cube = cfg.get("cubes", {}).get("size_per_cube", 0.05)
         self.npc_radius = cfg.get("npc", {}).get("radius", 1.8)
         self.npc_height = cfg.get("npc", {}).get("height", 3.5)
+        self.early_s = EARLY_DEFAULT_S
+        try:
+            ph = cfg["zone"]["phases"][0]
+            self.early_s = float(ph["hold_s"]) + float(ph["shrink_s"])
+        except Exception:
+            pass
+        self.rng = random.Random(hello.get("seed", 0))
         self.hits = []  # (t, attacker id, amount, bearing) of recent damage
-        self.retreating = False
-        self.cover = None       # (x, y, kind) chosen retreat spot: kind "cover" (hidden) or "flee"
-        self.cover_age = 0      # decisions since the spot was chosen
+        self.target_id = None
+        self.motion = {}  # mech id -> (t, velocity heading or None, turn rate)
+        self.strafe_dir = self.rng.choice((-1, 1))
+        self.strafe_until = 0.0
         self.world = None
         try:
             from world import World
@@ -137,7 +163,7 @@ class Bot:
         gc.freeze()  # keep start-up objects out of the collector so collections stay short
         atexit.register(self._report)
 
-    # ------------------------------------------------------------------ safety net (v2)
+    # ------------------------------------------------------------------ safety net
     def act(self, obs: mf.Observation) -> mf.Action:
         t0 = time.perf_counter()
         try:
@@ -209,6 +235,13 @@ class Bot:
         v = (me.get("stats") or {}).get("walk_speed")
         return v if isinstance(v, (int, float)) and v > 0 else self.walk_speed
 
+    @staticmethod
+    def _edge(z, t, x, y):
+        """How far (x, y) is inside the zone edge, now and LOOKAHEAD_S from now (the smaller)."""
+        cx, cy, r = zone_at(z, t)
+        fx, fy, fr = zone_at(z, t + LOOKAHEAD_S)
+        return min(r - math.hypot(x - cx, y - cy), fr - math.hypot(x - fx, y - fy))
+
     def zone_move(self, obs):
         """(goal or None, speed 0..1, boost, mode) for the legs."""
         me, z, t = obs["self"], obs["zone"], obs["t"]
@@ -216,10 +249,7 @@ class Bot:
         ncx, ncy = z["next_center"]
         nr = z["next_radius"]
 
-        cx, cy, r = zone_at(z, t)
-        fx, fy, fr = zone_at(z, t + LOOKAHEAD_S)
-        edge = min(r - math.hypot(x - cx, y - cy), fr - math.hypot(x - fx, y - fy))
-        if not me["in_zone"] or edge < EDGE_MARGIN_M:
+        if not me["in_zone"] or self._edge(z, t, x, y) < EDGE_MARGIN_M:
             return (ncx, ncy), 1.0, not me["in_zone"], "zone!"
 
         # A spot inside the next circle on the line from its center to us (not the crowded center).
@@ -236,7 +266,7 @@ class Bot:
             return goal, 1.0, False, "walk"
         return goal, min(1.0, slow_mps / walk_mps), False, "sneak"
 
-    # ------------------------------------------------------------------ attackers
+    # ------------------------------------------------------------------ attackers and targets
     def note_damage(self, obs):
         t = obs["t"]
         for e in obs.get("events") or []:
@@ -244,24 +274,112 @@ class Bot:
                 self.hits.append((t, e["by"], e.get("amount", 0), e["bearing"]))
         self.hits = [h for h in self.hits if t - h[0] <= ATTACKER_WINDOW_S]
 
+    def _origin(self, me):
+        """Our gun muzzle, moved on by one decision's latency."""
+        x, y, z = me["pos"]
+        mv = me.get("vel") or [0, 0, 0]
+        mh = (me.get("stats") or {}).get("muzzle_height", 7.0)
+        return x + mv[0] * LATENCY_S, y + mv[1] * LATENCY_S, z + mv[2] * LATENCY_S + mh
+
+    def _reach(self, me):
+        """Longest range among our direct-fire weapons (gun, laser)."""
+        r = 0.0
+        for w in me["weapons"]:
+            if w and w["kind"] in ("gun", "laser"):
+                r = max(r, (w.get("stats") or {}).get("range", 230.0 if w["kind"] == "gun" else 280.0))
+        return r
+
+    def clear_mechs(self, obs, enemies):
+        """[(hp, dist, mech)] for the nearest MAX_CANDIDATES mechs we have a clear shot at, in reach."""
+        me = obs["self"]
+        origin = self._origin(me)
+        gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"), None)
+        laser = next((w for w in me["weapons"] if w and w["kind"] == "laser"), None)
+        out = []
+        for m in enemies[:MAX_CANDIDATES]:
+            _, height = self._size(m)
+            ok, d = False, math.dist(origin, m["pos"])
+            if gun:
+                gs = gun.get("stats") or {}
+                ok = self.gun_solution(origin, m, gs.get("speed", 252.0), height, gs.get("range", 230.0))[4]
+            if not ok and laser:
+                q = self.predict(m, LATENCY_S, 0.5 * height)
+                ok = math.dist(origin, q) <= (laser.get("stats") or {}).get("range", 280.0) and self.clear(origin, q)
+            if ok:
+                out.append((_hp(m), d, m))
+        return out
+
     def choose_target(self, obs, enemies):
-        """(target or None, bearing to face or None, why)."""
+        """(target or None, bearing to face or None, why). Mechs first: the lowest-HP clear mech (sticky),
+        unless a mech is hitting us and the current target isn't nearly dead; then v3's fallbacks."""
+        t = obs["t"]
         seen = {m["id"]: m for m in obs["mechs"]}
         dmg, last = {}, {}
         for ht, by, amount, bearing in self.hits:
             dmg[by] = dmg.get(by, 0) + amount
             last[by] = (ht, bearing)
-        ranked = sorted(dmg, key=lambda k: -dmg[k])
+        is_mech = lambda i: seen[i]["kind"] == "mech" if i in seen else (isinstance(i, (int, float)) and 0 <= i < 100)
+        hitting = sorted((i for i in dmg if is_mech(i) and t - last[i][0] <= HIT_RECENT_S), key=lambda i: -dmg[i])
+
+        target, why = None, ""
+        clear = self.clear_mechs(obs, enemies)
+        if clear:
+            hp, _, best = min(clear, key=lambda c: (c[0], c[1]))
+            cur = next((c for c in clear if c[2]["id"] == self.target_id), None)
+            if cur is not None and hp > cur[0] - STICKY_HP:
+                best = cur[2]
+            target, why = best, "weakest"
+        if hitting and (target is None or (hitting[0] != target["id"] and _hp_frac(target) >= FINISH_FRAC)):
+            a = hitting[0]
+            if a in seen:
+                target, why = seen[a], "attacker"
+            else:
+                self.target_id = None
+                return None, last[a][1], "face hit"
+        if target is not None:
+            self.target_id = target["id"]
+            return target, None, why
+
+        # nothing clear: v3's order (a visible attacker, mechs first; an unseen hit's bearing; the nearest)
+        ranked = sorted(dmg, key=lambda i: (not is_mech(i), -dmg[i]))
         for by in ranked:
             if by in seen:
+                self.target_id = by
                 return seen[by], None, "attacker"
+        self.target_id = None
         if ranked:
             ht, bearing = last[ranked[0]]
-            if obs["t"] - ht <= FACE_S:
+            if t - ht <= FACE_S:
                 return None, bearing, "face hit"
         if enemies:
+            self.target_id = enemies[0]["id"]
             return enemies[0], None, "nearest"
         return None, None, ""
+
+    # ------------------------------------------------------------------ motion model (v5: circular)
+    def note_motion(self, obs):
+        """Update each visible mech's turn-rate estimate from its velocity heading."""
+        t = obs["t"]
+        motion = {}
+        for m in obs["mechs"]:
+            if m["kind"] != "mech":
+                continue
+            vx, vy = m["vel"][0], m["vel"][1]
+            if math.hypot(vx, vy) < MOTION_MIN_SPEED:
+                motion[m["id"]] = (t, None, 0.0)
+                continue
+            h = math.atan2(vy, vx)
+            prev = self.motion.get(m["id"])
+            w = 0.0
+            if prev is not None and prev[1] is not None:
+                dt = t - prev[0]
+                if 0 < dt <= MOTION_DT_MAX:
+                    w = prev[2] + OMEGA_ALPHA * (_wrap(h - prev[1]) / dt - prev[2])
+                    w = max(-OMEGA_MAX, min(OMEGA_MAX, w))
+                elif dt == 0:
+                    w = prev[2]  # same observation again
+            motion[m["id"]] = (t, h, w)
+        self.motion = motion
 
     # ------------------------------------------------------------------ ballistics
     def _size(self, m):
@@ -272,9 +390,16 @@ class Bot:
         return 2.5 * s, 9.0 * s
 
     def predict(self, m, dt, z_off):
-        """Where m's aim point (z_off above its feet) will be dt seconds from now."""
+        """Where m's aim point (z_off above its feet) will be dt seconds from now: along an arc at its
+        estimated turn rate (a straight line if it isn't turning)."""
         (px, py, pz), (vx, vy, vz) = m["pos"], m["vel"]
-        qx, qy, qz = px + vx * dt, py + vy * dt, pz + vz * dt
+        w = self.motion.get(m.get("id"), (0, None, 0.0))[2] if m.get("kind") == "mech" else 0.0
+        if abs(w) > 1e-3:
+            s, c = math.sin(w * dt), math.cos(w * dt)
+            qx, qy = px + (vx * s - vy * (1 - c)) / w, py + (vy * s + vx * (1 - c)) / w
+        else:
+            qx, qy = px + vx * dt, py + vy * dt
+        qz = pz + vz * dt
         if abs(vz) > 1.0:  # airborne (or on a steep slope: the ground clamp keeps it honest)
             qz -= 0.5 * self.gravity * dt * dt
             if self.world is not None:
@@ -335,7 +460,7 @@ class Bot:
             ok = not any(self.world.blocked(pts[k], pts[k + 1]) for k in range(8))
         return yaw, pitch, d, q, ok
 
-    # ------------------------------------------------------------------ the fight
+    # ------------------------------------------------------------------ the fight (torso)
     def engage(self, obs, m, legs_hurry):
         """(aim, fire) against target m."""
         me = obs["self"]
@@ -343,8 +468,7 @@ class Bot:
         st = me["stats"]
         aim_now = me["aim"]
         radius, height = self._size(m)
-        mv = me.get("vel") or [0, 0, 0]
-        origin = (x + mv[0] * LATENCY_S, y + mv[1] * LATENCY_S, z + mv[2] * LATENCY_S + st.get("muzzle_height", 7.0))
+        origin = self._origin(me)
         fire = [False, False]
         slots = {w["kind"]: (i, w) for i, w in enumerate(me["weapons"]) if w}
 
@@ -404,137 +528,90 @@ class Bot:
             aim = list(self.angles(origin, self.predict(m, LATENCY_S, 0.5 * height)))
         return aim, fire
 
-    # ------------------------------------------------------------------ survival (v4)
-    @staticmethod
-    def _edge(z, t, x, y):
-        """How far (x, y) is inside the zone edge, now and LOOKAHEAD_S from now (the smaller)."""
-        cx, cy, r = zone_at(z, t)
-        fx, fy, fr = zone_at(z, t + LOOKAHEAD_S)
-        return min(r - math.hypot(x - cx, y - cy), fr - math.hypot(x - fx, y - fy))
-
-    def _eye(self, m):
-        return m["pos"][0], m["pos"][1], m["pos"][2] + self._size(m)[1] * 8.0 / 9.0
-
-    def _hidden(self, eyes, x, y, z, hc, ht):
-        """Is a mech with its feet at (x, y, z) hidden (center hc and top ht above the feet) from every eye?"""
-        w = self.world
-        return all(w.blocked(e, (x, y, z + hc)) and w.blocked(e, (x, y, z + ht)) for e in eyes)
-
-    def find_cover(self, obs, threats):
-        """(x, y, kind) of a retreat spot, or None. kind "cover": hidden from every threat (nearest ring
-        first, directions straight away first); "flee": no hidden spot, the one farthest from them.
-        Every spot is inside the zone with EDGE_MARGIN_M to spare, not inside a building, reachable in
-        a straight line, and no closer to any threat than we are."""
-        me, zn, t = obs["self"], obs["zone"], obs["t"]
-        x, y, z = me["pos"]
-        w = self.world
-        st = me.get("stats") or {}
-        hc, ht = 0.5 * st.get("height", 9.0), st.get("eye_height", 8.0)
-        eyes = [self._eye(m) for m in threats]
-        if w is not None and self._hidden(eyes, x, y, z, hc, ht):
-            return x, y, "cover"
-        ax, ay = sum(e[0] for e in eyes) / len(eyes), sum(e[1] for e in eyes) / len(eyes)
-        away = math.atan2(y - ay, x - ax)
-        order = [0] + [s * k for k in range(1, COVER_DIRS // 2 + 1) for s in (1, -1)][:COVER_DIRS - 1]
-        best, best_d = None, -1.0
-        for rad in COVER_RADII:
-            for k in order:
-                a = away + 2 * math.pi * k / COVER_DIRS
-                sx, sy = x + rad * math.cos(a), y + rad * math.sin(a)
-                if any((sx - x) * (e[0] - x) + (sy - y) * (e[1] - y) > 0 for e in eyes):
-                    continue  # that way is toward a threat
-                if self._edge(zn, t, sx, sy) < EDGE_MARGIN_M:
-                    continue
-                dmin = min(math.hypot(sx - e[0], sy - e[1]) for e in eyes)
-                if w is None:
-                    if dmin > best_d:
-                        best, best_d = (sx, sy, "flee"), dmin
-                    continue
-                g = w.ground(sx, sy)
-                if w.solid_at(sx, sy, g + 1.0) or w.solid_at(sx, sy, g + ht):
-                    continue
-                hidden = self._hidden(eyes, sx, sy, g, hc, ht)
-                if not hidden and dmin <= best_d:
-                    continue
-                if w.blocked((x, y, z + 2.0), (sx, sy, g + 2.0)):
-                    continue  # a wall or a ridge in the way
-                if hidden:
-                    return sx, sy, "cover"
-                best, best_d = (sx, sy, "flee"), dmin
-        return best
-
-    def retreat_move(self, obs, enemies):
-        """(goal or None, speed 0..1, boost, mode) for the legs while breaking off, or None to leave
-        the legs to the zone logic."""
+    # ------------------------------------------------------------------ the legs (v5)
+    def _lane_ok(self, obs, a):
+        """Is STRAFE_LOOK_M along yaw a open ground (no wall) and clear of the zone edge?"""
         me = obs["self"]
-        x, y = me["pos"][0], me["pos"][1]
-        threats = enemies[:MAX_THREATS]
-        if not threats:
-            self.cover = None
-            return None, 0.0, False, "hide"  # out of sight: stand still and let HP regenerate
-        self.cover_age += 1
-        if self.cover is None or self.cover_age >= COVER_EVERY:
-            self.cover, self.cover_age = self.find_cover(obs, threats), 0
-        boost = (me.get("energy") or 0) > 30
-        if self.cover is None:  # nowhere to go that passes the checks: straight away, if the zone allows
-            ex = sum(m["pos"][0] for m in threats) / len(threats)
-            ey = sum(m["pos"][1] for m in threats) / len(threats)
-            a = math.atan2(y - ey, x - ex)
-            gx, gy = x + 20 * math.cos(a), y + 20 * math.sin(a)
-            if self._edge(obs["zone"], obs["t"], gx, gy) >= EDGE_MARGIN_M:
-                return (gx, gy), 1.0, boost, "flee"
-            return None
-        sx, sy, kind = self.cover
-        if math.hypot(sx - x, sy - y) <= COVER_ARRIVE_M:
-            return None, 0.0, False, "covered" if kind == "cover" else "cornered"
-        return (sx, sy), 1.0, boost, kind
-
-    def _heading_ok(self, x, y, a, near, zn, t, edge0):
-        """Does walking along yaw a keep out of every drone's range (or at least not go deeper) and
-        no nearer the zone edge than EDGE_MARGIN_M (or than we already are)?"""
-        c, s = math.cos(a), math.sin(a)
-        for d in NPC_LOOK_M:
-            px, py = x + c * d, y + s * d
-            for nx, ny in near:
-                dn = math.hypot(px - nx, py - ny)
-                if dn < NPC_AVOID_M and dn < math.hypot(x - nx, y - ny) - 0.5:
-                    return False
-            if self._edge(zn, t, px, py) < min(EDGE_MARGIN_M, edge0) - 0.5:
+        x, y, z = me["pos"]
+        px, py = x + STRAFE_LOOK_M * math.cos(a), y + STRAFE_LOOK_M * math.sin(a)
+        if self._edge(obs["zone"], obs["t"], px, py) < EDGE_MARGIN_M:
+            return False
+        if self.world is not None:
+            h = (me.get("stats") or {}).get("height", 9.0)
+            if self.world.solid_at(px, py, z + 1.0) or self.world.solid_at(px, py, z + h - 1.0):
                 return False
         return True
 
-    def steer(self, obs, move, npcs, mode):
-        """Bend the legs' heading around NPC drones' firing range; step out of it when standing in it.
-        Outside the zone nothing deflects the run back."""
-        me = obs["self"]
-        if not npcs or not me.get("in_zone", True):
-            return move
+    def _new_strafe(self, t):
+        self.strafe_dir = -self.strafe_dir
+        self.strafe_until = t + self.rng.uniform(STRAFE_MIN_S, STRAFE_MAX_S)
+
+    def strafe_move(self, obs, target):
+        """Unit move perpendicular to the target, or None if both sides are blocked."""
+        me, t = obs["self"], obs["t"]
         x, y = me["pos"][0], me["pos"][1]
-        reach = NPC_AVOID_M + NPC_LOOK_M[-1]
-        near = [(n["pos"][0], n["pos"][1]) for n in npcs if math.hypot(n["pos"][0] - x, n["pos"][1] - y) < reach]
-        if not near:
-            return move
-        sp = math.hypot(*move)
-        if sp < 1e-6:
-            inside = [p for p in near if math.hypot(p[0] - x, p[1] - y) < NPC_AVOID_M]
-            if not inside:
-                return move
-            px, py = min(inside, key=lambda p: math.hypot(p[0] - x, p[1] - y))
-            yaw0, sp = math.atan2(y - py, x - px), 1.0
-        else:
-            yaw0 = math.atan2(move[1], move[0])
-        zn, t = obs["zone"], obs["t"]
-        edge0 = self._edge(zn, t, x, y)
-        max_dev = math.radians(60 if mode == "zone!" else 135)
-        step = math.radians(22.5)
-        for k in range(13):
-            dev = step * ((k + 1) // 2) * (1 if k % 2 else -1)  # 0, +22.5, -22.5, +45, ...
-            if abs(dev) > max_dev + 1e-9:
-                break
-            a = yaw0 + dev
-            if self._heading_ok(x, y, a, near, zn, t, edge0):
-                return [math.cos(a) * sp, math.sin(a) * sp]
-        return move
+        if t >= self.strafe_until:
+            self._new_strafe(t)
+        b = math.atan2(target["pos"][1] - y, target["pos"][0] - x)
+        for _ in range(2):
+            a = b + self.strafe_dir * math.pi / 2
+            if self._lane_ok(obs, a):
+                return [math.cos(a), math.sin(a)]
+            self._new_strafe(t)
+        return None
+
+    def dodge_move(self, obs):
+        """Unit move sideways off the path of the most urgent bullet that would pass within DODGE_M, or None."""
+        me = obs["self"]
+        x, y, z = me["pos"]
+        cz = z + 0.5 * (me.get("stats") or {}).get("height", 9.0)
+        mv = me.get("vel") or [0, 0, 0]
+        best = None
+        for p in obs.get("projectiles") or []:
+            if p.get("kind") not in ("gun", "npc"):
+                continue
+            rx, ry, rz = p["pos"][0] - x, p["pos"][1] - y, p["pos"][2] - cz
+            vx, vy, vz = p["vel"][0] - mv[0], p["vel"][1] - mv[1], p["vel"][2] - mv[2]
+            vv = vx * vx + vy * vy + vz * vz
+            if vv < 1e-9:
+                continue
+            tc = -(rx * vx + ry * vy + rz * vz) / vv
+            if not 0 < tc <= DODGE_HORIZON_S:
+                continue
+            ox, oy, oz = rx + vx * tc, ry + vy * tc, rz + vz * tc  # the bullet, relative to us, when closest
+            if math.sqrt(ox * ox + oy * oy + oz * oz) >= DODGE_M:
+                continue
+            if best is None or tc < best[0]:
+                best = (tc, p, ox, oy)
+        if best is None:
+            return None
+        _, p, ox, oy = best
+        bx, by = p["vel"][0], p["vel"][1]
+        hb = math.hypot(bx, by)
+        if hb < 1e-6:
+            return None  # falling straight down: no sideways
+        nx, ny = -by / hb, bx / hb
+        side = -(nx * ox + ny * oy)  # where we are relative to the bullet's closest point, across its path
+        s = (1 if side > 0 else -1) if abs(side) > 1e-6 else self.strafe_dir
+        return [nx * s, ny * s]
+
+    def fetch_goal(self, obs, enemies):
+        """(x, y) of a laser pickup worth walking to early in the match, or None."""
+        me, t = obs["self"], obs["t"]
+        if t >= self.early_s or any(w and w["kind"] == "laser" for w in me["weapons"]):
+            return None
+        if any(math.dist(m["pos"], me["pos"]) < FETCH_SAFE_M for m in enemies):
+            return None
+        x, y, z = me["pos"]
+        best = None
+        for p in obs["pickups"]:
+            if p["kind"] != "laser" or abs(p["pos"][2] - z) > TAKE_Z_M:
+                continue
+            d = math.hypot(p["pos"][0] - x, p["pos"][1] - y)
+            if d <= FETCH_MAX_M and self._edge(obs["zone"], t, p["pos"][0], p["pos"][1]) >= EDGE_MARGIN_M:
+                if best is None or d < best[0]:
+                    best = (d, p["pos"][0], p["pos"][1])
+        return None if best is None else (best[1], best[2])
 
     # ------------------------------------------------------------------ the decision
     def decide(self, obs: mf.Observation) -> mf.Action:
@@ -544,61 +621,57 @@ class Bot:
         if obs["offer"]:
             act["pick"] = pick_upgrade(obs["offer"])
 
-        # loot: a laser or mortar within reach, into the empty slot
+        # loot: a laser or mortar within reach into the empty slot; a laser replaces a mortar
         weapons = me["weapons"]
         held = {w["kind"] for w in weapons if w}
-        if None in weapons:
-            near = [p for p in obs["pickups"] if p["kind"] in TAKE_KINDS and p["kind"] not in held
-                    and math.dist(p["pos"][:2], (x, y)) <= self.reach and abs(p["pos"][2] - z) <= TAKE_Z_M]
-            if near:
-                near.sort(key=lambda p: (TAKE_KINDS.index(p["kind"]), math.dist(p["pos"][:2], (x, y))))
-                act["take"] = near[0]["id"]
+        near = [p for p in obs["pickups"] if p["kind"] in TAKE_KINDS and p["kind"] not in held
+                and math.dist(p["pos"][:2], (x, y)) <= self.reach and abs(p["pos"][2] - z) <= TAKE_Z_M]
+        near.sort(key=lambda p: (TAKE_KINDS.index(p["kind"]), math.dist(p["pos"][:2], (x, y))))
+        if near and None in weapons:
+            act["take"] = near[0]["id"]
+        elif near and near[0]["kind"] == "laser" and "mortar" in held:
+            act["take"] = near[0]["id"]
+            act["drop"] = next(i for i, w in enumerate(weapons) if w and w["kind"] == "mortar")
 
         self.note_damage(obs)
+        self.note_motion(obs)
         enemies = sorted((m for m in obs["mechs"] if m["kind"] == "mech"), key=lambda m: math.dist(m["pos"], me["pos"]))
         target, face, why = self.choose_target(obs, enemies)
 
-        # break off below RETREAT_FRAC, fight again at RESUME_FRAC
-        hp, max_hp = me.get("hp") or 0, me.get("max_hp") or 1
-        if self.retreating and hp >= RESUME_FRAC * max_hp:
-            self.retreating, self.cover = False, None
-        elif not self.retreating and hp < RETREAT_FRAC * max_hp:
-            self.retreating, self.cover = True, None
-
+        # legs: zone hurry > dodge > laser fetch > strafe > zone walk
         goal, speed, boost, mode = self.zone_move(obs)
-        if self.retreating and mode != "zone!":  # the zone comes first
-            r = self.retreat_move(obs, enemies)
-            if r is not None:
-                goal, speed, boost, mode = r
+        legs = None
+        if mode != "zone!":
+            dodge = self.dodge_move(obs)
+            fetch = None if dodge else self.fetch_goal(obs, enemies)
+            if dodge:
+                legs, mode = dodge, "dodge"
+                if target is not None:  # keep strafing the way we dodged
+                    b = math.atan2(target["pos"][1] - y, target["pos"][0] - x)
+                    self.strafe_dir = 1 if dodge[0] * -math.sin(b) + dodge[1] * math.cos(b) >= 0 else -1
+            elif fetch:
+                goal, speed, boost, mode = fetch, 1.0, False, "fetch"
+                if math.hypot(fetch[0] - x, fetch[1] - y) <= FETCH_ARRIVE_M:
+                    goal = None
+            elif target is not None and math.dist(target["pos"], me["pos"]) <= self._reach(me):
+                s = self.strafe_move(obs, target)
+                if s:
+                    legs, mode = s, "strafe"
         nc = obs["zone"]["next_center"]
-        if goal is None:
+        if legs is not None:
+            move, boost = legs, False
+            yaw = math.atan2(legs[1], legs[0])
+        elif goal is None:
             move = [0.0, 0.0]
             yaw = math.atan2(nc[1] - y, nc[0] - x)
         else:
             yaw = math.atan2(goal[1] - y, goal[0] - x)
             move = [math.cos(yaw) * speed, math.sin(yaw) * speed]
+        act.update(move=move, aim=[yaw, 0.0], boost=boost, jump=obs["tick"] % 40 == 0, fire=[False, False])
 
-        # NPC drones: keep out of their range, except the one we are fighting
-        fighting = target["id"] if target is not None and not self.retreating else None
-        npcs = [m for m in obs["mechs"] if m["kind"] == "npc" and m["id"] != fighting]
-        move = self.steer(obs, move, npcs, mode)
-
-        # quiet: no enemy in view -> below the footstep speed, unless the zone forces us to hurry
-        if not enemies and mode not in ("zone!", "walk"):
-            walk_mps = self._walk_mps(me)
-            cap = SLOW_FRAC * self.step_speed / walk_mps
-            sp = math.hypot(*move)
-            if sp > cap:
-                move = [move[0] * cap / sp, move[1] * cap / sp]
-            boost = False
-
-        act.update(move=move, aim=[yaw, 0.0], boost=boost, jump=obs["tick"] % 40 == 0 and not self.retreating,
-                   fire=[False, False])
-
+        # torso
         if target is not None:
             aim, fire = self.engage(obs, target, mode == "zone!")
-            if self.retreating and math.dist(target["pos"], me["pos"]) > CORNERED_M:
-                fire = [False, False]  # dealing damage restarts the regen timer
             act.update(aim=aim, fire=fire)
         elif face is not None:
             act["aim"] = [face, 0.0]
@@ -610,10 +683,8 @@ class Bot:
             if ammo is not None and (ammo < mag if mag is not None else ammo == 0):
                 act["reload"] = True
 
-        if goal is not None:
+        if goal is not None and legs is None:
             mf.draw.point([goal[0], goal[1], z], "#40c0ff", 6)
-        if self.retreating and self.cover is not None:
-            mf.draw.point([self.cover[0], self.cover[1], z], "#60ff60", 8)
         tag = f"{why} {target['id']}" if target is not None else why
         mf.draw.label(f"{mode} · hp {me['hp']:.0f} · {len(enemies)} in sight · {tag}")
         return act

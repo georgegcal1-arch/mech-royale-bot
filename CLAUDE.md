@@ -23,7 +23,7 @@ Defaults from `mechfight-kit/protocol.md` and the recorded `hello.config`; the b
 **Zone:** starts at 560 m radius. Phases (hold s / shrink s → radius, dps outside): 60/50 → 380 m, 20 · 45/40 → 240, 35 · 35/35 → 140, 60 · 30/30 → 70, 100 · 25/25 → 25, 160 · 15/25 → 0, 260. Closed by 6:55. No regen outside it.
 **Sensing:** vision 200 m in a 120° cone plus 45 m all round; seen mechs tracked for 5 s. Moving > 5 m/s on the ground makes footstep sounds. Mechs walk 11.7 m/s, boost 19.5 m/s, 1400 HP; regen 45 HP/s after 5 s without damage.
 
-**Files:** `bot.py` (strategy; `Bot.act` safety net → `decide`) · `world.py` (map geometry, line-of-shot checks) · `mechfight.py` (kit wrapper, don't edit) · `Dockerfile` · `scores.txt` · `tests/` (pytest + Hypothesis suite, v3's unittest `test_bot.py`, `replay.py`, `hook.py` = PostToolUse hook). `mechfight-kit/` is local only (gitignored); the map is `mechfight-kit/arena/v2/`.
+**Files:** `bot.py` (strategy; `Bot.act` safety net → `decide`) · `world.py` (map geometry, line-of-shot checks) · `mechfight.py` (kit wrapper, don't edit) · `Dockerfile` · `scores.txt` · `tests/` (pytest + Hypothesis suite, v3's unittest `test_bot.py`, v5's `test_kills.py`, `test_world.py`, `replay.py`, `hook.py` = PostToolUse hook). `mechfight-kit/` is local only (gitignored); the map is `mechfight-kit/arena/v2/`.
 
 **Commands** (from the repo root):
 ```sh
