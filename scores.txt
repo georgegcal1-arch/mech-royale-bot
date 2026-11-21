@@ -1,4 +1,4 @@
 # Mech Royale practice scores (mean of 16 - place over 48 matches; 15 = always win)
 v1 = 1.15   # starter (kit example bot)
 v2 = 1.10   # safety net + zone awareness (commit "v2: safety net + zone")
-v3 = ?      # gun duels: face attacker, lead, clear shots only, laser/mortar loot, armor (commit "v3: gun duels")
+v3 = 1.81   # gun duels: face attacker, lead, clear shots only, laser/mortar loot, armor (commit "v3: gun duels")
