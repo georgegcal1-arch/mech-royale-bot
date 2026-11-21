@@ -3,10 +3,11 @@ one CSV row per decision.
 
     python tests/replay.py                 # -> tests/out/decisions.csv
     python tests/replay.py --out my.csv
+    python tests/replay.py --no-timing     # blank ms column: byte-comparable across runs
 
 Columns: tick, t, hp, nearest_enemy (id@metres, blank if none in sight), move (x y), aim (yaw pitch,
 radians), fire (slot0 slot1), reason (the bot's mode: zone!/walk/sneak/hold/SAFE, plus what it did),
-ms (decision time).
+ms (decision time; blank with --no-timing).
 """
 import argparse
 import csv
@@ -47,7 +48,7 @@ def reason(action, obs, fell_back, enemy):
     return "; ".join(parts)
 
 
-def replay(out_path):
+def replay(out_path, timing=True):
     bot = new_bot()
     rows = []
     for obs in OBS:
@@ -63,7 +64,7 @@ def replay(out_path):
             "aim": " ".join(f"{v:.3f}" for v in action.get("aim", [])),
             "fire": " ".join(str(bool(v)).lower() for v in action.get("fire", [False, False])),
             "reason": reason(action, obs, bot.fallbacks > fb, enemy),
-            "ms": f"{dt * 1000:.3f}",
+            "ms": f"{dt * 1000:.3f}" if timing else "",
         })
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with open(out_path, "w", newline="") as f:
@@ -76,9 +77,10 @@ def replay(out_path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--out", default=os.path.join(REPO, "tests", "out", "decisions.csv"))
+    ap.add_argument("--no-timing", action="store_true", help="leave the ms column blank (for byte-for-byte comparisons)")
     a = ap.parse_args()
-    rows, bot = replay(a.out)
-    worst = max(float(r["ms"]) for r in rows)
+    rows, bot = replay(a.out, timing=not a.no_timing)
+    worst = max((float(r["ms"]) for r in rows if r["ms"]), default=float("nan"))
     firing = sum(1 for r in rows if "firing" in r["reason"])
     print(f"wrote {len(rows)} decisions to {a.out}: worst {worst:.3f} ms, fallbacks {bot.fallbacks}, firing in {firing}")
 
