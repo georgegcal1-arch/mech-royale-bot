@@ -43,10 +43,10 @@ HEAL = False  # v7/v7b scored below v6: kept for experiments, off = v6 exactly
 # v9 experiments: all off = v6 exactly
 DUEL = True  # winner: exp A 3.21 (QUEUE.md)
 LEAD_AIM = False
-LEARN_DODGE = True  # exp C under test, on top of DUEL + LIGHTNING (QUEUE.md)
+LEARN_DODGE = False  # exp C 3.46: no gain over 3.46 (QUEUE.md)
 SQUAD_AVOID = False
 LIGHTNING = True  # winner: exp F 3.46 (QUEUE.md)
-LOOKAHEAD = False
+LOOKAHEAD = True  # exp G under test, on top of DUEL + LIGHTNING (QUEUE.md)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD")
 
 # HEAL tuning
