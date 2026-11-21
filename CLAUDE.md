@@ -1,5 +1,9 @@
 # mech-royale-bot
 
+**Game knowledge:** `GAME_KNOWLEDGE.md` has every known rule with its protocol.md § citation, the practice
+opponents (15 house bots acting as one squad), the recorded-match findings and the later offline-map idea.
+Read it before designing a behaviour. The key facts below are the short version.
+
 ## Key facts
 
 Defaults from `mechfight-kit/protocol.md` and the recorded `hello.config`; the bot must read live values from `hello.config`.
