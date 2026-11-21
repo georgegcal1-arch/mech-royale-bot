@@ -21,13 +21,16 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 4. When the score comes in: log it in `scores.txt` with the commit hash, apply winner/loser, update this
    file, and prepare the next step right away.
 
-## Order (re-ranked by expected payoff after A)
+## Order (re-ranked by expected payoff after A; H, I, J added after C)
 | Step | Experiment (switch) | Setup submitted | Commit | Score | vs bar | Result |
 |------|---------------------|-----------------|--------|-------|--------|--------|
 | A | duel (`DUEL`) | DUEL | 3b7c5ac | **3.21** | +0.29 vs 2.92 | **winner: kept on** |
 | F | lightning (`LIGHTNING`) | DUEL + LIGHTNING | 21dbb8f | **3.46** | +0.25 vs 3.21 | **winner: kept on** |
 | C | learn_dodge (`LEARN_DODGE`) | DUEL + LIGHTNING + LEARN_DODGE | 6dc2b3e | **3.46** | +0.00 vs 3.46 | loser: turned off |
-| G | lookahead (`LOOKAHEAD`) | DUEL + LIGHTNING + LOOKAHEAD | (exp G commit) | | needs 3.61 | |
+| G | lookahead (`LOOKAHEAD`) | DUEL + LIGHTNING + LOOKAHEAD | 5ea055b | | needs 3.61 | |
+| H | laser_guard (`LASER_GUARD`) | best + LASER_GUARD | | | | |
+| I | no_chip (`NO_CHIP`) | best + NO_CHIP | | | | |
+| J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | B | lead_aim (`LEAD_AIM`) | best + LEAD_AIM | | | | |
 | D | squad_avoid (`SQUAD_AVOID`) | best + SQUAD_AVOID | | | | |
 
@@ -39,6 +42,11 @@ already is the combination of the winners.
 - Branch `v9-fg` (f9a8ced, pushed to origin): F `LIGHTNING` and G `LOOKAHEAD`, built off v9-base, both off.
   Plan: merge it into `worktree-v3` (main) only when the queue reaches F. A dry run showed the merge is
   conflict-free. **Status: merged for step F** (both switches still exist; G stays off until its step).
+- Branch `v9-hij` (c0a679a, pushed to origin): H `LASER_GUARD` (guard.py), I `NO_CHIP` (nochip.py), J `AMBUSH`
+  (ambush.py), all off, plus `tools/damage_ledger.py`; built off worktree-v3 at 51da0da. Merge it into
+  `worktree-v3` when the queue reaches H (right after G's score is logged).
+- Why H, I, J (from `tools/damage_ledger.py` on the recorded match): 1260 of 1665 damage taken was 4 laser
+  hits at 55-150 m; our gun chip shots at 100-160 m (6 of 10 hits) kept resetting the regen clock.
 - All v9 switches are listed in `features.V9_SWITCHES`. `conftest.v9_off` and `replay.py --v6` turn them all
   off for the v6 golden comparisons, so those stay valid whatever the defaults are.
 
