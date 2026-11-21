@@ -57,9 +57,9 @@ LEARN_DODGE = False  # exp C 3.46: no gain over 3.46 (QUEUE.md)
 SQUAD_AVOID = False
 LIGHTNING = True  # winner: exp F 3.46 (QUEUE.md)
 LOOKAHEAD = False  # exp G 3.23: below the 3.46 bar (QUEUE.md)
-LASER_GUARD = False  # exp H (queued after G)
-NO_CHIP = False      # exp I
-AMBUSH = False       # exp J
+LASER_GUARD = True  # exp HI (laser discipline) under test, with NO_CHIP, on top of DUEL + LIGHTNING (QUEUE.md)
+NO_CHIP = True  # exp HI under test (QUEUE.md)
+AMBUSH = False  # exp J (next, on top of whatever wins)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH")
 

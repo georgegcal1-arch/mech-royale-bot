@@ -15,6 +15,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import bot as B  # noqa: E402
+import features  # noqa: E402
 import mechfight as mf  # noqa: E402
 
 MAP_DIR = os.environ.get("MAP_DIR", "/arena")
@@ -104,6 +105,13 @@ class Ballistics(unittest.TestCase):
 
 
 class Firing(unittest.TestCase):
+    # v3's firing rules at 100-140 m; v9 NO_CHIP (which holds the gun beyond 100 m) has its own tests
+    def setUp(self):
+        self._no_chip, features.NO_CHIP = features.NO_CHIP, False
+
+    def tearDown(self):
+        features.NO_CHIP = self._no_chip
+
     def test_no_fire_until_torso_is_on_target(self):
         b = B.Bot(hello())
         act = b.act(obs(aim=(math.pi, 0), mechs=[mech(5, (100, 0, 200))]))

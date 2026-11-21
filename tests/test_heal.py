@@ -73,7 +73,8 @@ def test_low_hp_holds_fire_and_moves_away_from_a_far_enemy(bot):
     assert abs((acts[-1]["aim"][0] - a + math.pi) % (2 * math.pi) - math.pi) < 0.2, "not facing the threat"
 
 
-def test_same_situation_at_full_hp_fires(bot):  # control for the test above
+def test_same_situation_at_full_hp_fires(bot, monkeypatch):  # control for the test above
+    monkeypatch.setattr(features, "NO_CHIP", False)  # the enemy is 120 m away: v9 NO_CHIP would hold the gun
     obs = _obs(1.0)
     _, pos = _clear_dir(bot, obs, 120)
     obs["mechs"] = [_mech(5, pos)]
