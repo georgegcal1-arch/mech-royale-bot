@@ -24,6 +24,11 @@ import bot as botmod  # noqa: E402
 if not (os.path.exists(STREAM) and os.path.exists(SCHEMA)):
     pytest.exit(f"mechfight kit not found at {KIT} (set MECHFIGHT_KIT)", returncode=4)
 
+ARENA = os.path.join(KIT, "arena")
+# tests/test_bot.py (unittest) finds the map and the kit through these; point them at the local kit.
+os.environ.setdefault("MAP_DIR", ARENA)
+os.environ.setdefault("KIT_DIR", KIT)
+
 # Hypothesis: "default" for a thorough run, "hook" for the quick run after every edit.
 settings.register_profile("default", max_examples=300, deadline=None,
                           suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large])
@@ -41,6 +46,7 @@ def load_stream():
 
 
 HELLO, OBS = load_stream()
+HELLO["map"]["dir"] = ARENA  # as --map-dir does in check.py: the bot loads the real map (cover checks)
 
 
 def load_check_module():
@@ -63,7 +69,17 @@ def new_bot():
     mf.draw.caps = HELLO["config"]["debug"]
     b = botmod.Bot(copy.deepcopy(HELLO))
     atexit.unregister(b._report)  # its timing summary is for matches; tests report their own
+    # Snapshot the freshly built state (the map is read-only and expensive, so it is shared).
+    b._fresh_state = {k: copy.deepcopy(v) for k, v in vars(b).items() if k != "world"}
     return b
+
+
+def reset(bot):
+    """Put a bot back to its just-built state (e.g. v3 forgets remembered hits), keeping its map, so
+    independent examples don't leak into each other."""
+    for k, v in bot._fresh_state.items():
+        if k != "_fresh_state":
+            setattr(bot, k, copy.deepcopy(v))
 
 
 def respond(bot, obs):

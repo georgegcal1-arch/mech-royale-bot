@@ -39,6 +39,9 @@ GAME_FIELDS = {
     "cooldown": st.floats(0, 3),
     "amount": st.floats(0, 500),
     "bearing": st.floats(-math.pi, math.pi),
+    # Velocities (mechs walk ~12, boost ~20, knock-back 16, fall/jet up to ~40 m/s). Bullets are faster,
+    # but the bot ignores projectile velocities; an actor faster than a bullet is not a game situation.
+    "vel": st.floats(-40, 40),
 }
 WILD_NUMBER = st.one_of(st.integers(-2**53, 2**53),
                         st.floats(allow_nan=False, allow_infinity=False))
@@ -96,10 +99,20 @@ def compile_schema(s, mode, field=None):
     return st.nothing()
 
 
+SIGHT_M = 300.0  # vision.range 200 m, plus up to memory_s 5 s of tracking after a mech leaves view
+
+
 def _game_fixups(o):
     """Protocol facts the schema doesn't encode."""
     me = o["self"]["id"] = o["self"]["id"] % 16
+    sx, sy, sz = o["self"]["pos"]
     for m in o["mechs"]:
+        # Everything in `mechs` is seen (or tracked for memory_s): within ~SIGHT_M of us, +-60 m in height.
+        dx, dy, dz = m["pos"][0] / 4, m["pos"][1] / 4, m["pos"][2] / 20
+        r = math.hypot(dx, dy)
+        if r > SIGHT_M:
+            dx, dy = dx * SIGHT_M / r, dy * SIGHT_M / r
+        m["pos"] = [sx + dx, sy + dy, sz + dz]
         if m["kind"] == "mech":
             m["id"] = m["id"] % 16
             if m["id"] == me:

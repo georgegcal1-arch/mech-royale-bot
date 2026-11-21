@@ -28,7 +28,8 @@ def main():
         return 0
 
     env = {**os.environ, "HYPOTHESIS_PROFILE": "hook", "PYTHONDONTWRITEBYTECODE": "1"}
-    tests = subprocess.run([sys.executable, "-m", "pytest", "tests", "-q", "--tb=line", "-p", "no:cacheprovider"],
+    # -rfE lists every failure/error by name, including strict xfails that started passing (XPASS(strict)).
+    tests = subprocess.run([sys.executable, "-m", "pytest", "tests", "-q", "--tb=line", "-rfE", "-p", "no:cacheprovider"],
                            cwd=REPO, env=env, capture_output=True, text=True, timeout=170)
     replay = subprocess.run([sys.executable, os.path.join(HERE, "replay.py")],
                             cwd=REPO, env=env, capture_output=True, text=True, timeout=60)
@@ -37,9 +38,8 @@ def main():
     if tests.returncode == 0 and replay.returncode == 0:
         print(json.dumps({"systemMessage": f"tests: {summary} | {replay.stdout.strip()}"}))
         return 0
-    # --tb=line gives one "path:line: Error: message" per failure; ERROR lines cover collection problems.
-    failed = [l for l in lines if (".py:" in l and "Error" in l and not l.startswith(("E ", "FAILED")))
-              or l.startswith("ERROR")]
+    # The short summary (-rfE) has one "FAILED test - reason" / "ERROR ..." line per problem.
+    failed = [l for l in lines if l.startswith(("FAILED", "ERROR"))]
     report = "\n".join(failed[-40:] + [summary])
     if replay.returncode != 0:
         report += "\nreplay.py failed:\n" + replay.stderr[-1500:]

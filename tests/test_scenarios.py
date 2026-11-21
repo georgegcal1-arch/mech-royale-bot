@@ -30,7 +30,6 @@ def _enemy(obs, mid, dx, dy, hp=1400):
 
 
 # --- hit from behind ---------------------------------------------------------------------
-@strategy_gap("the bot does not turn toward the bearing of a hit")
 def test_hit_from_behind_turns_to_face_attacker(bot):
     """Shot in the back by an unseen attacker: turn the torso toward the damage bearing
     (rear hits take x1.5 and the attacker is likely there)."""
@@ -146,7 +145,6 @@ def test_ignores_pickup_out_of_reach(bot):
     assert "take" not in action
 
 
-@strategy_gap("pickup reach is checked horizontally only")
 def test_ignores_pickup_out_of_vertical_reach(bot):
     """A weapon on a roof 8 m above us is within 4 m horizontally but not vertically: `take` fails."""
     obs = _with_pickup(base_obs(100), 2.0, dz=8.0)
