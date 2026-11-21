@@ -1,0 +1,17 @@
+# The organizers' kit stays local; only the bot goes in the repo.
+mechfight-kit/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local Claude Code settings
+.claude/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

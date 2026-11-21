@@ -1,0 +1,11 @@
+# Keep the image small: the Dockerfile does `COPY . .`
+mechfight-kit/
+.git/
+.gitignore
+.gitattributes
+.dockerignore
+.claude/
+__pycache__/
+*.pyc
+.venv/
+venv/
