@@ -1,0 +1,4 @@
+# Test-only dependencies (the bot itself uses the standard library only).
+#   python -m pip install -r tests/requirements.txt
+pytest==9.2.0
+hypothesis==6.170.17

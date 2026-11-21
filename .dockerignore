@@ -5,6 +5,10 @@ mechfight-kit/
 .gitattributes
 .dockerignore
 .claude/
+tests/
+.hypothesis/
+.pytest_cache/
+scores.txt
 __pycache__/
 *.pyc
 .venv/
