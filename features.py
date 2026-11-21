@@ -26,6 +26,11 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
                aimers -> long strafe legs and dodge with it (learn_dodge.py); off = v5's dodge and strafe.
   SQUAD_AVOID  two or more enemy mechs engaging us: walk to where at most one has a line of fire, and
                target the most isolated one (squad.py); off = v6.
+  LIGHTNING    take lightning guns (laser > lightning > mortar; drop the gun only once laser and lightning
+               are both ours), fire lightning inside its range without starting laser charges there, and
+               shoot crates with the laser or lightning when the gun is gone (loot.py, combat.py, economy.py).
+  LOOKAHEAD    under threat, simulate ~0.8 s of 10 candidate moves against bullets/shells in flight and
+               predicted enemy shots; take the least expected damage if it saves LOOK_MIN_GAIN (lookahead.py).
 """
 STRAFE = True
 DODGE = True
@@ -40,7 +45,9 @@ DUEL = False
 LEAD_AIM = False
 LEARN_DODGE = False
 SQUAD_AVOID = False
-V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID")
+LIGHTNING = False
+LOOKAHEAD = False
+V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...

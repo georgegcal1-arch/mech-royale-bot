@@ -5,7 +5,10 @@ v9 (features.DUEL / LEAD_AIM / LEARN_DODGE / SQUAD_AVOID; QUEUE.md turns them on
   LEAD_AIM     per-mech motion model picked by back-testing its track, pooled prior (lead.py).
   LEARN_DODGE  learn the shooters' lead fraction from their bullets; strafe/dodge to beat it (learn_dodge.py).
   SQUAD_AVOID  2+ mechs engaging: walk where at most one has a line; target the most isolated (squad.py).
-  Legs: zone hurry > dodge > hide > squad > laser fetch > cube > duel > strafe > zone walk.
+  LIGHTNING    take lightning; laser + lightning (gun dropped) once both are ours; lightning owns close fights.
+  LOOKAHEAD    under threat, simulate 0.8 s of 10 candidate moves; least expected damage wins (lookahead.py).
+  Legs: zone hurry > dodge > hide > squad > laser fetch > cube > duel > strafe > zone walk; then LOOKAHEAD
+  may replace the result (not in zone hurry).
 
 v7: heal (disengage to regen).
 
@@ -64,7 +67,7 @@ Layout (behavior identical to the single-file v5):
   loot.py       taking weapons in reach, the early laser fetch
   economy.py    v6: crates and cubes when quiet
   heal.py       v7: disengage at low HP so regen can start (state, threats, hide spot)
-  duel.py, lead.py, learn_dodge.py, squad.py   v9 experiments
+  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py   v9 experiments (LIGHTNING: loot/combat/economy)
   features.py   on/off switches for the v5/v6/v7 features and the v9 experiments (defaults = v6)
 """
 import atexit
@@ -87,12 +90,13 @@ from safety import (ARRIVE_M, EDGE_MARGIN_M, LOOKAHEAD_S, SLOW_DECISION_MS, SLOW
 from duel import DuelMixin
 from lead import LeadMixin
 from learn_dodge import LearnDodgeMixin
+from lookahead import LookaheadMixin
 from squad import SquadMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
-          HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin):
+          HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
@@ -104,6 +108,9 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.size_per_cube = cfg.get("cubes", {}).get("size_per_cube", 0.05)
         self.npc_radius = cfg.get("npc", {}).get("radius", 1.8)
         self.npc_height = cfg.get("npc", {}).get("height", 3.5)
+        self.npc_damage = cfg.get("npc", {}).get("damage", 25.0)  # v9 lookahead
+        self.wcfg = cfg.get("weapons", {})                       # v9 lookahead
+        self.decision_t0 = None
         self.crate_radius = cfg.get("crates", {}).get("radius", CRATE_RADIUS)
         self.crate_height = cfg.get("crates", {}).get("height", CRATE_HEIGHT)
         self.early_s = EARLY_DEFAULT_S
@@ -168,6 +175,11 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         quiet = self.quiet(obs, enemies, target, face)  # always False with features.ECONOMY off
 
         move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, target, self.cube_goal(obs) if quiet else None)
+        if features.LOOKAHEAD and mode != "zone!":  # v9 (lookahead.py): least expected damage under threat
+            look = self.lookahead(obs, enemies, move, boost)
+            if look is not None:
+                move, boost, legs, mode = look, False, look, "look"
+                yaw = math.atan2(look[1], look[0])
         act.update(move=move, aim=[yaw, 0.0], boost=boost, jump=obs["tick"] % 40 == 0, fire=[False, False])
 
         # torso
@@ -175,7 +187,7 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
             if features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)
                 aim, fire = self.duel_engage(obs, target, mode == "zone!")
             else:
-                aim, fire = self.engage(obs, target, mode == "zone!")
+                aim, fire = self.engage(obs, target, mode == "zone!", lightning=features.LIGHTNING)
             act.update(aim=aim, fire=fire)
         elif face is not None:
             act["aim"] = [face, 0.0]

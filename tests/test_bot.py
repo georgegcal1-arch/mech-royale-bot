@@ -181,7 +181,12 @@ class Housekeeping(unittest.TestCase):
                              weapons=weapons)).get("take")
         self.assertEqual(take(("mortar", [3, 0, 200])), 8000)
         self.assertEqual(take(("mortar", [1, 0, 200]), ("laser", [3.9, 0, 200])), 8001, "laser preferred")
-        self.assertIsNone(take(("lightning", [1, 0, 200])))
+        import features
+        was, features.LIGHTNING = features.LIGHTNING, False  # v9 features.LIGHTNING takes it (test_v9fg.py)
+        try:
+            self.assertIsNone(take(("lightning", [1, 0, 200])))
+        finally:
+            features.LIGHTNING = was
         self.assertIsNone(take(("laser", [4.5, 0, 200])), "too far")
         self.assertIsNone(take(("laser", [1, 0, 205])), "too high")
         laser = {"kind": "laser", "cooldown": 0, "charge": 0, "stats": {"range": 280, "charge": 0.75}}
