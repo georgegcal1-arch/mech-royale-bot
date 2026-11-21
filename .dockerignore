@@ -9,6 +9,7 @@ tests/
 .hypothesis/
 .pytest_cache/
 scores.txt
+CLAUDE.md
 __pycache__/
 *.pyc
 .venv/

@@ -1,0 +1,37 @@
+# mech-royale-bot
+
+## Key facts
+
+Defaults from `mechfight-kit/protocol.md` and the recorded `hello.config`; the bot must read live values from `hello.config`.
+
+**Scoring:** place = order of death (last alive = 1st; same tick = shared place; at the 8:00 time limit survivors rank by HP). Each match scores `16 - place`; a submission's score is the mean over 48 practice matches. Surviving beats kills. History in `scores.txt`.
+
+**Timing and sandbox:**
+- 20 ticks/s, one decision every 2 ticks (10/s). Answer each `obs` within **50 ms**, echoing its `tick`; `ready` within 20 s.
+- No answer: `move`/`aim`/`boost` coast for 1 s, then idle. Queued observations: answer only the newest. Lines ≤ 64 KiB.
+- Our target is **< 10 ms per decision**. check.py fails a pass when > 2% of answers are late (3 tries).
+- Container: no network, 1 CPU, 512 MB, read-only disk (write only `/tmp`, 64 MB), uid 65534, map at `/arena`. Logs to stderr only.
+- Submission build: linux/amd64, ≤ 10 min, repo ≤ 20 MB, `Dockerfile` at the top level.
+
+**Weapons** (shots leave along the *actual* torso aim; hits from behind the 180° front arc do x1.5):
+- gun: 45 dmg, 252 m/s, 230 m range, 0.24 s cooldown, mag 12, reload 2.4 s.
+- mortar: 72 m/s at gravity 22 (max range ~235 m), 200 direct + 160 splash (7 m), 2.6 s cooldown, knock-back.
+- laser: hold to charge 0.75 s, release fires 315 dmg (35% at no charge), 280 m, 1.65 s cooldown, +60% vs mortar carriers.
+- lightning: 60 dmg, 45 m, 30° cone, chains to 2 more within 14 m, 3 energy per shot, 0.25 s cooldown.
+- Pickup reach: 4 m horizontal and 4 m vertical. Cubes: +4% HP and damage each (up to 10).
+
+**Zone:** starts at 560 m radius. Phases (hold s / shrink s → radius, dps outside): 60/50 → 380 m, 20 · 45/40 → 240, 35 · 35/35 → 140, 60 · 30/30 → 70, 100 · 25/25 → 25, 160 · 15/25 → 0, 260. Closed by 6:55. No regen outside it.
+**Sensing:** vision 200 m in a 120° cone plus 45 m all round; seen mechs tracked for 5 s. Moving > 5 m/s on the ground makes footstep sounds. Mechs walk 11.7 m/s, boost 19.5 m/s, 1400 HP; regen 45 HP/s after 5 s without damage.
+
+**Files:** `bot.py` (strategy; `Bot.act` safety net → `decide`) · `world.py` (map geometry, line-of-shot checks) · `mechfight.py` (kit wrapper, don't edit) · `Dockerfile` · `scores.txt` · `tests/` (pytest + Hypothesis suite, v3's unittest `test_bot.py`, `replay.py`, `hook.py` = PostToolUse hook). `mechfight-kit/` is local only (gitignored); the map is `mechfight-kit/arena/v2/`.
+
+**Commands** (from the repo root):
+```sh
+python -m pip install -r tests/requirements.txt
+python -m pytest tests                                  # full suite (~1 min); HYPOTHESIS_PROFILE=hook for the quick run
+python tests/replay.py                                  # -> tests/out/decisions.csv
+python mechfight-kit/check/check.py -- python -u bot.py
+docker build -t my-bot .
+python mechfight-kit/check/check.py --map-dir /arena -- docker run --rm -i --network none --cpus 1 --memory 512m --read-only --tmpfs /tmp:rw,size=64m --user 65534:65534 -v "${PWD}/mechfight-kit/arena:/arena:ro" my-bot
+```
+On Windows check.py turns `--map-dir /arena` into `C:\arena`, so the bot runs without its map locally ("map not loaded" on stderr). The Linux scorer passes `/arena` unchanged.
