@@ -93,7 +93,8 @@ class CombatMixin:
             aim = [yaw, pitch]
             mf.draw.line([x, y, origin[2]], list(q), "#ff5040" if ok else "#806060")
             if (ok and d <= rng and w.get("ammo", 0) > 0 and (w.get("reload") or 0) <= 0
-                    and aimed(aim_now, yaw, pitch, d, radius, height)):
+                    and aimed(aim_now, yaw, pitch, d, radius, height)
+                    and not self.chip_hold(m, d)):  # v9 NO_CHIP (nochip.py)
                 fire[i] = True
 
         # v9 features.LIGHTNING: a close fight belongs to the lightning gun
