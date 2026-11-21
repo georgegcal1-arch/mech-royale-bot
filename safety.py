@@ -52,7 +52,7 @@ class SafetyMixin:
 
     # ------------------------------------------------------------------ safety net
     def act(self, obs: mf.Observation) -> mf.Action:
-        t0 = time.perf_counter()
+        t0 = self.decision_t0 = time.perf_counter()  # v9 lookahead.py budgets from here
         try:
             act = self.decide(obs)
             self._validate(act)

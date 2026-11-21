@@ -18,9 +18,10 @@ class TargetingMixin:
     def _reach(self, me):
         """Longest range among our direct-fire weapons (gun, laser)."""
         r = 0.0
+        kinds = ("gun", "laser", "lightning") if features.LIGHTNING else ("gun", "laser")
         for w in me["weapons"]:
-            if w and w["kind"] in ("gun", "laser"):
-                r = max(r, (w.get("stats") or {}).get("range", 230.0 if w["kind"] == "gun" else 280.0))
+            if w and w["kind"] in kinds:
+                r = max(r, (w.get("stats") or {}).get("range", {"gun": 230.0, "laser": 280.0}.get(w["kind"], 45.0)))
         return r
 
     def clear_mechs(self, obs, enemies):

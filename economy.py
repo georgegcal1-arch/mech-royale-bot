@@ -4,12 +4,14 @@ and upgrade offers at 1/3/6/10 cubes). Upgrade preferences live in safety.pick_u
 Quiet = no target, no hit bearing to face, no enemy mech in sight (or tracked), and no sound a mech
 could have made heard within ~160 m in the last HEARD_S. A crate or cube is only worth it within
 ECON_MAX_M, inside the next zone circle, on the ground (not a roof), and away from visible NPC drones.
+v9 features.LIGHTNING: with the gun dropped (laser + lightning), crates are shot with lightning up close
+or a fully charged laser (315 one-shots a 300 HP crate).
 """
 import math
 
 import features
 from combat import aimed
-from perception import _finite
+from perception import _finite, _wrap
 
 ECON_MAX_M = 80.0       # shoot crates / walk to cubes at most this far away (horizontal)
 ECON_MARGIN_M = 10.0    # ...and at least this far inside the next zone circle
@@ -61,7 +63,7 @@ class EconomyMixin:
         """(crate, aim, fire) for the nearest eligible crate with a clear gun line, or None."""
         me = obs["self"]
         gun = next(((i, w) for i, w in enumerate(me["weapons"]) if w and w["kind"] == "gun"), None)
-        if gun is None:
+        if gun is None and not features.LIGHTNING:
             return None
         crates = []
         for c in obs.get("crates") or []:
@@ -71,6 +73,8 @@ class EconomyMixin:
         if not crates:
             return None
         crates.sort(key=lambda dc: dc[0])
+        if gun is None:
+            return self._crate_shot_gunless(obs, crates)
         i, w = gun
         rng = (w.get("stats") or {}).get("range", 230.0)
         origin = self._origin(me)
@@ -84,6 +88,39 @@ class EconomyMixin:
             fire[i] = (w.get("ammo", 0) > 0 and (w.get("reload") or 0) <= 0
                        and aimed(me["aim"], yaw, pitch, d, self.crate_radius, self.crate_height))
             return c, [yaw, pitch], fire
+        return None
+
+    def _crate_shot_gunless(self, obs, crates):
+        """v9: (crate, aim, fire) with lightning (in range, energy, cone) or the laser (charge, release when
+        full and on target), or None."""
+        me = obs["self"]
+        slots = {w["kind"]: (i, w) for i, w in enumerate(me["weapons"]) if w}
+        origin = self._origin(me)
+        for _, c in crates[:CRATE_CANDIDATES]:
+            q = (c["pos"][0], c["pos"][1], c["pos"][2] + 0.5 * self.crate_height)
+            d = math.dist(origin, q)
+            yaw, pitch = self.angles(origin, q)
+            fire = [False, False]
+            if "lightning" in slots:
+                i, w = slots["lightning"]
+                ls = w.get("stats") or {}
+                if (d <= ls.get("range", 45.0) - 2.0 and (me.get("energy") or 0) >= ls.get("energy", 3.0)
+                        and self.clear(origin, q)):
+                    fire[i] = ((w.get("cooldown") or 0) <= 0
+                               and abs(_wrap(me["aim"][0] - yaw)) <= 0.4 * math.radians(ls.get("cone_deg", 30.0)))
+                    return c, [yaw, pitch], fire
+            if "laser" in slots:
+                i, w = slots["laser"]
+                ls = w.get("stats") or {}
+                if d > ls.get("range", 280.0) or not self.clear(origin, q):
+                    continue
+                charge = w.get("charge") or 0.0
+                if charge > 0:
+                    full = charge >= ls.get("charge", 0.75)
+                    fire[i] = not (full and aimed(me["aim"], yaw, pitch, d, self.crate_radius, self.crate_height))
+                elif (w.get("cooldown") or 0) <= 0:
+                    fire[i] = True
+                return c, [yaw, pitch], fire
         return None
 
     def cube_goal(self, obs):

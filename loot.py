@@ -1,9 +1,13 @@
-"""Loot (v3): take a laser or mortar within reach; v5's early walk to a visible laser pickup."""
+"""Loot (v3): take a laser or mortar within reach; v5's early walk to a visible laser pickup.
+v9 features.LIGHTNING: lightning too (laser > lightning > mortar); a laser or lightning replaces a mortar, and
+the gun is dropped only to hold laser and lightning together; the early fetch also walks to a lightning gun."""
 import math
 
+import features
 from safety import EDGE_MARGIN_M
 
 TAKE_KINDS = ("laser", "mortar")  # pickups worth taking, preferred first
+TAKE_KINDS_LIGHTNING = ("laser", "lightning", "mortar")  # v9 features.LIGHTNING
 TAKE_Z_M = 4.0          # vertical pickup reach (fixed by the protocol)
 FETCH_MAX_M = 150.0     # walk to a visible laser pickup at most this far away
 FETCH_SAFE_M = 60.0     # ...only with no enemy mech this close
@@ -16,6 +20,8 @@ class LootMixin:
 
     def take_loot(self, obs, act):
         """A laser or mortar within reach into the empty slot; a laser replaces a mortar. Sets act take/drop."""
+        if features.LIGHTNING:
+            return self._take_loot_lightning(obs, act)
         me = obs["self"]
         x, y, z = me["pos"]
         weapons = me["weapons"]
@@ -29,17 +35,48 @@ class LootMixin:
             act["take"] = near[0]["id"]
             act["drop"] = next(i for i, w in enumerate(weapons) if w and w["kind"] == "mortar")
 
+    def _take_loot_lightning(self, obs, act):
+        """v9: laser > lightning > mortar into an empty slot; with both slots full, a laser or lightning
+        replaces a mortar, or replaces the gun when it completes laser + lightning. The gun is never taken."""
+        me = obs["self"]
+        x, y, z = me["pos"]
+        weapons = me["weapons"]
+        slot = {w["kind"]: i for i, w in enumerate(weapons) if w}
+        near = [p for p in obs["pickups"] if p["kind"] in TAKE_KINDS_LIGHTNING and p["kind"] not in slot
+                and math.dist(p["pos"][:2], (x, y)) <= self.reach and abs(p["pos"][2] - z) <= TAKE_Z_M]
+        if not near:
+            return
+        near.sort(key=lambda p: (TAKE_KINDS_LIGHTNING.index(p["kind"]), math.dist(p["pos"][:2], (x, y))))
+        if None in weapons:
+            act["take"] = near[0]["id"]
+            return
+        for p in near:
+            if p["kind"] == "mortar":
+                continue
+            other = "lightning" if p["kind"] == "laser" else "laser"
+            if "mortar" in slot:
+                act["take"], act["drop"] = p["id"], slot["mortar"]
+                return
+            if other in slot and "gun" in slot:
+                act["take"], act["drop"] = p["id"], slot["gun"]
+                return
+
     def fetch_goal(self, obs, enemies):
-        """(x, y) of a laser pickup worth walking to early in the match, or None."""
+        """(x, y) of a laser pickup worth walking to early in the match, or None. v9 features.LIGHTNING: a
+        laser or lightning pickup, whichever we don't hold yet."""
         me, t = obs["self"], obs["t"]
-        if t >= self.early_s or any(w and w["kind"] == "laser" for w in me["weapons"]):
+        if features.LIGHTNING:
+            want = {"laser", "lightning"} - {w["kind"] for w in me["weapons"] if w}
+            if t >= self.early_s or not want:
+                return None
+        elif t >= self.early_s or any(w and w["kind"] == "laser" for w in me["weapons"]):
             return None
         if any(math.dist(m["pos"], me["pos"]) < FETCH_SAFE_M for m in enemies):
             return None
         x, y, z = me["pos"]
         best = None
         for p in obs["pickups"]:
-            if p["kind"] != "laser" or abs(p["pos"][2] - z) > TAKE_Z_M:
+            if (p["kind"] not in want if features.LIGHTNING else p["kind"] != "laser") or abs(p["pos"][2] - z) > TAKE_Z_M:
                 continue
             d = math.hypot(p["pos"][0] - x, p["pos"][1] - y)
             if d <= FETCH_MAX_M and self._edge(obs["zone"], t, p["pos"][0], p["pos"][1]) >= EDGE_MARGIN_M:

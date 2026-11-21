@@ -1,6 +1,7 @@
 """The torso (v3): lead, clear shots only, laser charge/release, mortar lobs, and reloading when idle."""
 import math
 
+import features
 import mechfight as mf
 from perception import LATENCY_S, _wrap
 
@@ -70,7 +71,8 @@ class CombatMixin:
     # ------------------------------------------------------------------ the fight (torso)
     def engage(self, obs, m, legs_hurry, mortar=True, lightning=False):
         """(aim, fire) against target m. v9 (duel.py): `mortar` False keeps the mortar quiet; `lightning`
-        True fires a held lightning gun at a target inside its range and cone."""
+        True fires a held lightning gun at a target inside its range and cone. v9 features.LIGHTNING: inside
+        lightning range (with the energy for a shot) the laser starts no new charge (it halves our speed)."""
         me = obs["self"]
         x, y, z = me["pos"]
         st = me["stats"]
@@ -94,6 +96,14 @@ class CombatMixin:
                     and aimed(aim_now, yaw, pitch, d, radius, height)):
                 fire[i] = True
 
+        # v9 features.LIGHTNING: a close fight belongs to the lightning gun
+        close = False
+        if features.LIGHTNING and lightning and "lightning" in slots:
+            lw = slots["lightning"][1]
+            lst = lw.get("stats", {})
+            close = (math.dist(origin, self.predict(m, LATENCY_S, 0.5 * height)) <= lst.get("range", 45.0) - 2.0
+                     and (me.get("energy") or 0) >= lst.get("energy", 3.0))
+
         # laser: hitscan, no lead. Charge on a clear target, let go when full and on target.
         laser = slots.get("laser")
         if laser:
@@ -112,7 +122,7 @@ class CombatMixin:
                     fire[i] = not aimed(aim_now, yaw, pitch, d, radius, height)
                 else:
                     fire[i] = True
-            elif ok and w.get("cooldown", 0) <= 0 and not legs_hurry:  # charging halves our speed
+            elif ok and w.get("cooldown", 0) <= 0 and not legs_hurry and not close:  # charging halves our speed
                 fire[i] = True
 
         # v9 duel: lightning (no lead: a 30-degree cone) at a target in range, the gun's aim kept
