@@ -162,13 +162,17 @@ class Facing(unittest.TestCase):
 
 
 class Housekeeping(unittest.TestCase):
-    def test_reload_only_when_empty_and_nothing_in_view(self):
+    def test_reload_partial_mag_when_nothing_in_view(self):
         b = B.Bot(hello())
-        empty = [gun(ammo=0, reload=0), None]
-        self.assertTrue(b.act(obs(weapons=empty)).get("reload"))
-        self.assertFalse(b.act(obs(weapons=empty, mechs=[mech(5, (300, 0, 200))])).get("reload"))
-        self.assertFalse(b.act(obs(weapons=[gun(ammo=5), None])).get("reload"))
-        self.assertFalse(b.act(obs(weapons=[gun(ammo=0, reload=2.0), None])).get("reload"))
+        self.assertTrue(b.act(obs(weapons=[gun(ammo=0), None])).get("reload"))
+        self.assertTrue(b.act(obs(weapons=[gun(ammo=5), None])).get("reload"), "top off a partly used mag")
+        self.assertFalse(b.act(obs(weapons=[gun(ammo=12), None])).get("reload"), "mag already full")
+        self.assertFalse(b.act(obs(weapons=[gun(ammo=5), None], mechs=[mech(5, (300, 0, 200))])).get("reload"))
+        npc = mech(104, (30, 0, 200), kind="npc")
+        hit = {"type": "damaged", "amount": 25, "weapon": "npc", "bearing": 0.0, "by": 104}
+        self.assertFalse(b.act(obs(weapons=[gun(ammo=5), None], mechs=[npc], events=[hit])).get("reload"),
+                         "not while fighting an NPC")
+        self.assertFalse(b.act(obs(weapons=[gun(ammo=0, reload=2.0), None])).get("reload"), "already reloading")
 
     def test_takes_laser_or_mortar_within_4m(self):
         b = B.Bot(hello())

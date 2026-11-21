@@ -385,9 +385,12 @@ class Bot:
         elif face is not None:
             act["aim"] = [face, 0.0]
 
+        # Reload a partly used magazine whenever no enemy is in view (and nothing, e.g. an NPC, is engaged).
         gun = next((w for w in weapons if w and w["kind"] == "gun"), None)
-        if gun and gun.get("ammo", 1) == 0 and (gun.get("reload") or 0) <= 0 and not enemies:
-            act["reload"] = True
+        if gun and not enemies and target is None and (gun.get("reload") or 0) <= 0:
+            ammo, mag = gun.get("ammo"), (gun.get("stats") or {}).get("mag")
+            if ammo is not None and (ammo < mag if mag is not None else ammo == 0):
+                act["reload"] = True
 
         if goal is not None:
             mf.draw.point([goal[0], goal[1], z], "#40c0ff", 6)
