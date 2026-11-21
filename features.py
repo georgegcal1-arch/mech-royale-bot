@@ -23,7 +23,7 @@ ECONOMY = True
 HEAL = True
 
 # HEAL tuning
-HEAL_ENTER_FRAC = 0.45  # disengage below this fraction of max HP...
-HEAL_EXIT_FRAC = 0.85   # ...until back at this fraction
+HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...
+HEAL_EXIT_FRAC = 0.70   # ...until back at this fraction
 HEAL_FIGHT_M = 40.0     # a mech or NPC drone this close: fight back instead
 HEAL_FINAL_R = 70.0     # zone radius at or below this (the last phases): never disengage

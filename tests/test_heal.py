@@ -8,6 +8,8 @@ from replay import replay
 
 GOLDEN = f"{REPO}/tests/golden/v6_replay.csv"
 MAX_HP = 1400.0
+LOW = features.HEAL_ENTER_FRAC - 0.1  # clearly below the heal threshold
+MID = 0.5 * (features.HEAL_ENTER_FRAC + features.HEAL_EXIT_FRAC)  # between the thresholds
 
 
 def _obs(hp_frac, i=100):
@@ -52,7 +54,7 @@ def _label(action):
 
 
 def test_low_hp_holds_fire_and_moves_away_from_a_far_enemy(bot):
-    obs = _obs(0.3)
+    obs = _obs(LOW)
     a, pos = _clear_dir(bot, obs, 120)
     obs["mechs"] = [_mech(5, pos)]
     acts = _run(bot, obs)
@@ -71,7 +73,7 @@ def test_same_situation_at_full_hp_fires(bot):  # control for the test above
 
 
 def test_fights_back_within_fight_range(bot):
-    obs = _obs(0.3)
+    obs = _obs(LOW)
     _, pos = _clear_dir(bot, obs, 0.8 * features.HEAL_FIGHT_M)
     obs["mechs"] = [_mech(5, pos)]
     acts = _run(bot, obs)
@@ -81,7 +83,7 @@ def test_fights_back_within_fight_range(bot):
 
 
 def test_no_heal_in_the_final_zone(bot):
-    obs = _obs(0.3)
+    obs = _obs(LOW)
     x, y, _ = obs["self"]["pos"]
     obs["zone"].update(center=[x, y], next_center=[x, y], radius=features.HEAL_FINAL_R, next_radius=25.0,
                        shrink_start=obs["t"] + 30, shrink_end=obs["t"] + 55)
@@ -92,14 +94,14 @@ def test_no_heal_in_the_final_zone(bot):
     assert any(any(x["fire"]) for x in acts)
 
 
-def test_hysteresis_45_to_85(bot):
+def test_hysteresis_between_enter_and_exit(bot):
     obs = _obs(features.HEAL_ENTER_FRAC + 0.05)
     respond(bot, obs)
     assert not bot.healing, "above the enter threshold: no heal yet"
     obs["self"]["hp"] = (features.HEAL_ENTER_FRAC - 0.05) * MAX_HP
     respond(bot, obs)
     assert bot.healing
-    obs["self"]["hp"] = 0.7 * MAX_HP
+    obs["self"]["hp"] = MID * MAX_HP
     action, _ = respond(bot, obs)
     assert bot.healing and _label(action).startswith("heal/"), "between the thresholds: keep healing"
     obs["self"]["hp"] = features.HEAL_EXIT_FRAC * MAX_HP
@@ -108,7 +110,7 @@ def test_hysteresis_45_to_85(bot):
 
 
 def test_zone_hurry_beats_hiding(bot):
-    obs = _obs(0.3)
+    obs = _obs(LOW)
     z = obs["zone"]
     cx, cy = z["center"]
     d = z["radius"] + 60
@@ -126,7 +128,7 @@ def test_zone_hurry_beats_hiding(bot):
 def test_prefers_a_spot_out_of_the_threats_sight(bot, monkeypatch):
     """With buildings (stubbed) hiding every spot north of us from the threat, the hide spot is north,
     although straight away from the threat (west) would gain more distance."""
-    obs = _obs(0.3)
+    obs = _obs(LOW)
     nx, ny = obs["zone"]["next_center"]
     z = bot.world.ground(nx, ny)
     obs["self"]["pos"] = [nx, ny, z]
@@ -144,7 +146,7 @@ def test_prefers_a_spot_out_of_the_threats_sight(bot, monkeypatch):
 
 
 def test_stays_put_when_already_hidden(bot, monkeypatch):
-    obs = _obs(0.3)
+    obs = _obs(LOW)
     nx, ny = obs["zone"]["next_center"]
     z = bot.world.ground(nx, ny)
     obs["self"]["pos"] = [nx, ny, z]
@@ -155,7 +157,7 @@ def test_stays_put_when_already_hidden(bot, monkeypatch):
 
 
 def test_unseen_attacker_counts_as_a_threat(bot):
-    obs = _obs(0.3)
+    obs = _obs(LOW)
     obs["events"] = [{"type": "damaged", "amount": 45, "weapon": "gun", "bearing": 0.5, "by": 7, "rear": False}]
     action, _ = respond(bot, obs)
     assert _label(action).startswith("heal/") and "1 threats" in _label(action)
@@ -175,7 +177,7 @@ def test_worst_case_hide_plan_is_fast(bot):
     """A cold re-plan (3 threats, every candidate checked) at spots all over the recorded match."""
     worst = 0.0
     for i in range(0, len(OBS), 10):
-        obs = _obs(0.3, i)
+        obs = _obs(LOW, i)
         x, y, z = obs["self"]["pos"]
         obs["mechs"] = [_mech(5 + k, [x + d * math.cos(a), y + d * math.sin(a), z])
                         for k, (d, a) in enumerate(((60, 0.3), (110, 2.4), (150, -1.9)))]
@@ -192,7 +194,7 @@ def test_hide_plan_checks_are_bounded():
 
 def test_far_threats_are_not_line_checked(bot, monkeypatch):
     """A threat beyond sight range counts as hidden without a (length-costly) line check."""
-    obs = _obs(0.3)
+    obs = _obs(LOW)
     x, y, z = obs["self"]["pos"]
     obs["mechs"] = [_mech(5, [x + 1000, y, z])]
     calls = []
