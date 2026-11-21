@@ -2,11 +2,11 @@
 
 Read this first after a /clear: it holds the rules, the order, where the code lives and what to do next.
 
-## Rules (since exp A scored 3.21)
+## Rules (since exp F scored 3.46)
 - **Stacked:** each experiment is turned on *on top of the current best setup*, which keeps all winners on.
   Only the experiment under test changes between two submissions.
 - **Bar:** the current best score. A step counts as a winner only if it beats the bar by **0.15+**
-  (noise). Now: best = **3.21** (DUEL), so a step must score **3.36 or more**.
+  (noise). Now: best = **3.46** (DUEL + LIGHTNING), so a step must score **3.61 or more**.
 - **Winner:** it stays on, and its score becomes the new bar. **Loser:** it is turned off again before
   the next step, so the next step stacks on the unchanged best.
 - **End:** `main` is left on the best-scoring setup.
@@ -25,8 +25,8 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | Step | Experiment (switch) | Setup submitted | Commit | Score | vs bar | Result |
 |------|---------------------|-----------------|--------|-------|--------|--------|
 | A | duel (`DUEL`) | DUEL | 3b7c5ac | **3.21** | +0.29 vs 2.92 | **winner: kept on** |
-| F | lightning (`LIGHTNING`) | DUEL + LIGHTNING | (exp F commit) | | needs 3.36 | |
-| C | learn_dodge (`LEARN_DODGE`) | best + LEARN_DODGE | | | | |
+| F | lightning (`LIGHTNING`) | DUEL + LIGHTNING | 21dbb8f | **3.46** | +0.25 vs 3.21 | **winner: kept on** |
+| C | learn_dodge (`LEARN_DODGE`) | DUEL + LIGHTNING + LEARN_DODGE | (exp C commit) | | needs 3.61 | |
 | G | lookahead (`LOOKAHEAD`) | best + LOOKAHEAD | | | | |
 | B | lead_aim (`LEAD_AIM`) | best + LEAD_AIM | | | | |
 | D | squad_avoid (`SQUAD_AVOID`) | best + SQUAD_AVOID | | | | |
@@ -42,4 +42,4 @@ already is the combination of the winners.
 - All v9 switches are listed in `features.V9_SWITCHES`. `conftest.v9_off` and `replay.py --v6` turn them all
   off for the v6 golden comparisons, so those stay valid whatever the defaults are.
 
-Status: **F ready to submit** (DUEL + LIGHTNING).
+Status: **C ready to submit** (DUEL + LIGHTNING + LEARN_DODGE).
