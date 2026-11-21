@@ -7,8 +7,12 @@ v9 (features.DUEL / LEAD_AIM / LEARN_DODGE / SQUAD_AVOID; QUEUE.md turns them on
   SQUAD_AVOID  2+ mechs engaging: walk where at most one has a line; target the most isolated (squad.py).
   LIGHTNING    take lightning; laser + lightning (gun dropped) once both are ours; lightning owns close fights.
   LOOKAHEAD    under threat, simulate 0.8 s of 10 candidate moves; least expected damage wins (lookahead.py).
-  Legs: zone hurry > dodge > hide > squad > laser fetch > cube > duel > strafe > zone walk; then LOOKAHEAD
-  may replace the result (not in zone hurry).
+  LASER_GUARD  H: a laser charging at us: short it with lightning up close, else boost out of its line (guard.py).
+  NO_CHIP      I: no gun shots beyond 100 m at a healthy mech; close in via cover instead (nochip.py).
+  AMBUSH       J: one hunter closing: wait hidden and silent, spring with lightning inside 43 m (ambush.py).
+  Legs: zone hurry > dodge > hide > squad > laser fetch > cube > (I) approach > duel > strafe > zone walk;
+  then LOOKAHEAD may replace the result, then (J) the ambush, then (H) the laser guard's cover (none of them
+  in zone hurry).
 
 v7: heal (disengage to regen).
 
@@ -67,7 +71,8 @@ Layout (behavior identical to the single-file v5):
   loot.py       taking weapons in reach, the early laser fetch
   economy.py    v6: crates and cubes when quiet
   heal.py       v7: disengage at low HP so regen can start (state, threats, hide spot)
-  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py   v9 experiments (LIGHTNING: loot/combat/economy)
+  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py
+                v9 experiments (LIGHTNING: loot/combat/economy)
   features.py   on/off switches for the v5/v6/v7 features and the v9 experiments (defaults = v6)
 """
 import atexit
@@ -92,11 +97,15 @@ from lead import LeadMixin
 from learn_dodge import LearnDodgeMixin
 from lookahead import LookaheadMixin
 from squad import SquadMixin
+from guard import LaserGuardMixin
+from nochip import NoChipMixin
+from ambush import AmbushMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
-          HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin):
+          HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin,
+          LaserGuardMixin, NoChipMixin, AmbushMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
@@ -136,6 +145,9 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.tracks, self.lead_err, self.lead_pool, self.lead_state = {}, {}, [[], 0], {}  # v9 LEAD_AIM
         self.bullets_seen, self.k_pool, self.k_by = {}, [0.0, 0], {}  # v9 LEARN_DODGE
         self.engaging, self.squad = [], None  # v9 SQUAD_AVOID
+        self.guard = None  # v9 LASER_GUARD: (re-plan time, chargers key, cover goal)
+        self.approach = None  # v9 NO_CHIP: (re-plan time, target id, goal)
+        self.ambush, self.ambush_cool = None, 0.0  # v9 AMBUSH
         self.times = []  # seconds per decision
         self.fallbacks = 0
         gc.freeze()  # keep start-up objects out of the collector so collections stay short
@@ -157,6 +169,9 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         if features.SQUAD_AVOID:
             self.engaging = self.engagers(obs, enemies)
         target, face, why = self.choose_target(obs, enemies)
+        guard = self.laser_guard(obs, enemies) if features.LASER_GUARD else None  # v9 H (guard.py)
+        if guard is not None and guard[0] == "short":
+            target, face, why = guard[1], None, "short"
 
         if self.heal_state(obs):  # v7: always False with features.HEAL off
             threats = self.threats(obs)
@@ -175,15 +190,37 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         quiet = self.quiet(obs, enemies, target, face)  # always False with features.ECONOMY off
 
         move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, target, self.cube_goal(obs) if quiet else None)
-        if features.LOOKAHEAD and mode != "zone!":  # v9 (lookahead.py): least expected damage under threat
+        covering = guard is not None and guard[0] == "cover" and guard[1] is not None  # v9 H takes the legs
+        if features.LOOKAHEAD and mode != "zone!" and not covering:  # v9 (lookahead.py): least expected damage under threat
             look = self.lookahead(obs, enemies, move, boost)
             if look is not None:
                 move, boost, legs, mode = look, False, look, "look"
                 yaw = math.atan2(look[1], look[0])
+        amb = None
+        if features.AMBUSH and mode != "zone!" and guard is None:  # v9 J (ambush.py): wait hidden, silent
+            amb = self.ambush_step(obs, enemies, mode)
+            if amb is not None:
+                goal, legs, boost, mode = amb["goal"], None, False, "ambush"
+                if goal is None:
+                    move = [0.0, 0.0]
+                else:
+                    yaw = math.atan2(goal[1] - y, goal[0] - x)
+                    move = [math.cos(yaw), math.sin(yaw)]
+        if covering and mode != "zone!":  # v9 H: boost out of the charging laser's line
+            goal, legs, boost, mode = guard[1], None, True, "guard"
+            yaw = math.atan2(goal[1] - y, goal[0] - x)
+            move = [math.cos(yaw), math.sin(yaw)]
         act.update(move=move, aim=[yaw, 0.0], boost=boost, jump=obs["tick"] % 40 == 0, fire=[False, False])
 
         # torso
-        if target is not None:
+        if amb is not None:  # v9 J: on the hunter, no shots, the gun topped up
+            act["aim"] = self.ambush_aim(obs, amb["look"])
+            why = f"ambush {self.ambush['hunter']}"
+            target, quiet = None, False
+        elif target is not None and why == "short":  # v9 H: lightning shorts the charging laser
+            aim, fire = self.engage(obs, target, mode == "zone!", lightning=True)
+            act.update(aim=aim, fire=fire)
+        elif target is not None:
             if features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)
                 aim, fire = self.duel_engage(obs, target, mode == "zone!")
             else:
@@ -201,7 +238,7 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
             if gun and gun.get("ammo", 0) <= 0 and (gun.get("reload") or 0) <= 0:
                 act["reload"] = True  # only on an empty mag: don't break off the volley
         else:
-            self.reload_if_idle(act, me["weapons"], enemies, target)
+            self.reload_if_idle(act, me["weapons"], [] if amb is not None else enemies, target)
 
         if goal is not None and legs is None:
             mf.draw.point([goal[0], goal[1], z], "#40c0ff", 6)

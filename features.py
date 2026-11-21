@@ -31,6 +31,16 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
                shoot crates with the laser or lightning when the gun is gone (loot.py, combat.py, economy.py).
   LOOKAHEAD    under threat, simulate ~0.8 s of 10 candidate moves against bullets/shells in flight and
                predicted enemy shots; take the least expected damage if it saves LOOK_MIN_GAIN (lookahead.py).
+  LASER_GUARD  H: an enemy with line of sight charging a laser at us (its `charging` flag aimed at us, or a
+               fresh laser_charge sound): within lightning range with a lightning gun ready, hit it (a short
+               stops its laser 2 s); else boost to the nearest spot it can't see, reachable in 0.75 s (guard.py).
+  NO_CHIP      I: the gun holds fire at a mech beyond NO_CHIP_M unless it is below NO_CHIP_FINISH of its HP
+               (chip shots block our regen and trade at range), and the legs close in via cover instead of
+               strafing at range (nochip.py; not while a laser without lightning wants the range).
+  AMBUSH       J: holding lightning, one hunter closing from 50-180 m, the zone not pressing: walk to a spot
+               within 40 m that it can't see, near its path to us, stand still and silent with fire held,
+               and spring (the normal lightning fight) when it comes within 43 m; abort on damage, a second
+               enemy, the zone, or a timeout (ambush.py).
 """
 STRAFE = True
 DODGE = True
@@ -47,7 +57,11 @@ LEARN_DODGE = False  # exp C 3.46: no gain over 3.46 (QUEUE.md)
 SQUAD_AVOID = False
 LIGHTNING = True  # winner: exp F 3.46 (QUEUE.md)
 LOOKAHEAD = True  # exp G under test, on top of DUEL + LIGHTNING (QUEUE.md)
-V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD")
+LASER_GUARD = False  # exp H (queued after G)
+NO_CHIP = False      # exp I
+AMBUSH = False       # exp J
+V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
+               "LASER_GUARD", "NO_CHIP", "AMBUSH")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...

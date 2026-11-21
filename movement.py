@@ -92,7 +92,7 @@ class MovementMixin:
 
     def legs(self, obs, enemies, target, cube=None, hide=None):
         """(move, yaw, boost, goal, legs, mode): zone hurry > dodge > (v7) hide > (v9) squad > laser fetch > cube
-        > (v9) duel > strafe > zone walk. `legs` is the strafe/dodge unit move (None when walking to `goal` or standing). `cube`
+        > (v9 I) approach > (v9) duel > strafe > zone walk. `legs` is the strafe/dodge unit move (None when walking to `goal` or standing). `cube`
         is the (x, y) of a cube to collect (economy.py), or None. `hide` is (goal or None, boost) from
         heal.py while disengaging from threats, else None."""
         me = obs["self"]
@@ -120,9 +120,12 @@ class MovementMixin:
                 goal, speed, boost, mode = cube, 1.0, False, "cube"
             elif target is not None and math.dist(target["pos"], me["pos"]) <= self._reach(me):
                 s = None
-                if features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)
+                ap = self.approach_goal(obs, target) if features.NO_CHIP else None  # v9 I (nochip.py)
+                if ap is not None:
+                    goal, speed, boost, mode = ap, 1.0, False, "approach"
+                elif features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)
                     s, how = self.duel_move(obs, target), "duel"
-                if s is None and features.STRAFE:
+                if ap is None and s is None and features.STRAFE:
                     s, how = self.strafe_move(obs, target), "strafe"
                 if s:
                     legs, mode = s, how
