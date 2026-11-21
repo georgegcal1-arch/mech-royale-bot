@@ -81,22 +81,25 @@ class MovementMixin:
         s = (1 if side > 0 else -1) if abs(side) > 1e-6 else self.strafe_dir
         return [nx * s, ny * s]
 
-    def legs(self, obs, enemies, target, cube=None):
-        """(move, yaw, boost, goal, legs, mode): zone hurry > dodge > laser fetch > cube > strafe > zone walk.
-        `legs` is the strafe/dodge unit move (None when walking to `goal` or standing). `cube` is the
-        (x, y) of a cube to collect (economy.py), or None."""
+    def legs(self, obs, enemies, target, cube=None, hide=None):
+        """(move, yaw, boost, goal, legs, mode): zone hurry > dodge > (v7) hide > laser fetch > cube > strafe
+        > zone walk. `legs` is the strafe/dodge unit move (None when walking to `goal` or standing). `cube`
+        is the (x, y) of a cube to collect (economy.py), or None. `hide` is (goal or None, boost) from
+        heal.py while disengaging from threats, else None."""
         me = obs["self"]
         x, y = me["pos"][0], me["pos"][1]
         goal, speed, boost, mode = self.zone_move(obs)
         legs = None
         if mode != "zone!":
             dodge = self.dodge_move(obs) if features.DODGE else None
-            fetch = None if dodge or not features.LASER_FETCH else self.fetch_goal(obs, enemies)
+            fetch = None if dodge or hide or not features.LASER_FETCH else self.fetch_goal(obs, enemies)
             if dodge:
                 legs, mode = dodge, "dodge"
                 if target is not None:  # keep strafing the way we dodged
                     b = math.atan2(target["pos"][1] - y, target["pos"][0] - x)
                     self.strafe_dir = 1 if dodge[0] * -math.sin(b) + dodge[1] * math.cos(b) >= 0 else -1
+            elif hide:
+                goal, speed, boost, mode = hide[0], 1.0, hide[1], "hide" if hide[0] else "cover"
             elif fetch:
                 goal, speed, boost, mode = fetch, 1.0, False, "fetch"
                 if math.hypot(fetch[0] - x, fetch[1] - y) <= FETCH_ARRIVE_M:

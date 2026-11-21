@@ -1,7 +1,8 @@
 """Static map geometry for line-of-shot and line-of-sight checks (protocol.md section 11).
 
 Shots and sight are stopped by prisms (buildings, stadium, bridges) and terrain. Trees never stop
-shots (they only fade sight), so they are ignored here. `World.blocked(a, b)` says whether the straight
+shots (they only fade sight), so they are ignored by `blocked`; `World.under_canopy` (v7 heal) says
+whether a point sits inside a dense crown, i.e. is hidden from sight. `World.blocked(a, b)` says whether the straight
 segment a -> b hits anything solid; `World.solid_at(x, y, z)` whether a point is inside a prism.
 Prisms are bucketed in a CELL_M grid so a line only tests the prisms near it, and lines are clipped to
 the terrain grid (nothing is out there), so the cost is bounded by the map size, not the line length.
@@ -13,6 +14,8 @@ import sys
 from array import array
 
 CELL_M = 32.0
+CANOPY_MIN_R = 4.0  # crowns this wide (or more) put >= ~4 m of foliage on any line to a point under them:
+                    # transmittance exp(-0.35 * 4) < canopyBlockT 0.25, so they hide us from sight
 
 
 class World:
@@ -38,6 +41,25 @@ class World:
             for ci in range(math.floor(min(xs) / CELL_M), math.floor(max(xs) / CELL_M) + 1):
                 for cj in range(math.floor(min(ys) / CELL_M), math.floor(max(ys) / CELL_M) + 1):
                     self.cells.setdefault((ci, cj), []).append(idx)
+
+        # v7 heal: dense tree crowns (sight only, never shots). Each: (cx, cy, r, crown bottom, crown top).
+        self.crowns = []
+        self.crown_cells = {}
+        trees = w.get("trees") or {}
+        f = trees.get("fields") or []
+        if all(k in f for k in ("z", "height", "crownR", "crownBase", "crownX", "crownY")):
+            data, n = trees.get("data") or [], len(f)
+            col = {k: f.index(k) for k in f}
+            for i in range(0, len(data) - n + 1, n):
+                r = data[i + col["crownR"]]
+                if r < CANOPY_MIN_R:
+                    continue
+                tz, cx, cy = data[i + col["z"]], data[i + col["crownX"]], data[i + col["crownY"]]
+                idx = len(self.crowns)
+                self.crowns.append((cx, cy, r, tz + data[i + col["crownBase"]], tz + data[i + col["height"]]))
+                for ci in range(math.floor((cx - r) / CELL_M), math.floor((cx + r) / CELL_M) + 1):
+                    for cj in range(math.floor((cy - r) / CELL_M), math.floor((cy + r) / CELL_M) + 1):
+                        self.crown_cells.setdefault((ci, cj), []).append(idx)
 
         t = w["terrain"]
         self.t_minx, self.t_miny, self.t_step = t["minX"], t["minY"], t["step"]
@@ -173,6 +195,14 @@ class World:
                 return True
         length = math.sqrt(dx * dx + dy * dy + dz * dz)
         return self._terrain_blocks(ax, ay, az, dx, dy, dz, length)
+
+    def under_canopy(self, x, y, z):
+        """True if (x, y, z) is inside a dense tree crown (1 m in from its edge)."""
+        for idx in self.crown_cells.get((math.floor(x / CELL_M), math.floor(y / CELL_M)), ()):
+            cx, cy, r, lo, hi = self.crowns[idx]
+            if lo <= z <= hi and math.hypot(x - cx, y - cy) <= r - 1.0:
+                return True
+        return False
 
     def solid_at(self, x, y, z):
         """True if (x, y, z) is inside a prism."""

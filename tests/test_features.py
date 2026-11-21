@@ -8,7 +8,7 @@ import features
 from conftest import OBS, action_problems, new_bot, respond
 from replay import replay
 
-SWITCHES = ["STRAFE", "DODGE", "LASER_FETCH", "CIRCULAR_AIM", "LOWHP_TARGETING", "ECONOMY"]
+SWITCHES = ["STRAFE", "DODGE", "LASER_FETCH", "CIRCULAR_AIM", "LOWHP_TARGETING", "ECONOMY", "HEAL"]
 # ECONOMY never triggers in the recorded match (its crates are outside the next circle or have a mech in
 # sight); tests/test_economy.py covers it with built scenarios and checks ECONOMY off == v5.
 
@@ -35,7 +35,7 @@ def test_no_timing_replay_is_byte_identical_across_runs(tmp_path):
 
 
 @pytest.mark.parametrize("switch, mark", [("STRAFE", "strafe "), ("DODGE", "dodge "), ("LASER_FETCH", "fetch "),
-                                          ("LOWHP_TARGETING", " weakest ")])
+                                          ("LOWHP_TARGETING", " weakest "), ("HEAL", "heal/")])
 def test_switch_off_removes_its_behaviour(monkeypatch, switch, mark):
     assert any(mark in lab for lab in _labels(new_bot())), f"the recorded match never shows {mark!r}"
     monkeypatch.setattr(features, switch, False)

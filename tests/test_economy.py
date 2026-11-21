@@ -234,7 +234,8 @@ def test_many_crates_and_cubes_stay_fast():
 
 def test_economy_off_replay_matches_v5_exactly(monkeypatch, tmp_path):
     monkeypatch.setattr(features, "ECONOMY", False)
+    monkeypatch.setattr(features, "HEAL", False)  # v7's heal is on top of v6
     out = tmp_path / "off.csv"
     replay(str(out), timing=False)
     with open(GOLDEN, "rb") as f:
-        assert out.read_bytes() == f.read(), "with ECONOMY off the replay must equal v5's (tests/golden/v5_replay.csv)"
+        assert out.read_bytes() == f.read(), "with ECONOMY and HEAL off the replay must equal v5's (tests/golden/v5_replay.csv)"

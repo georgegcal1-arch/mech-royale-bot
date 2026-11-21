@@ -4,8 +4,9 @@ one CSV row per decision.
     python tests/replay.py                 # -> tests/out/decisions.csv
     python tests/replay.py --out my.csv
     python tests/replay.py --no-timing     # blank ms column: byte-comparable across runs
-    python tests/replay.py --no-timing --off ECONOMY   # a features.py switch off (repeatable);
-                                           # ECONOMY off must equal tests/golden/v5_replay.csv
+    python tests/replay.py --no-timing --off HEAL      # a features.py switch off (repeatable);
+                                           # HEAL off must equal tests/golden/v6_replay.csv,
+                                           # HEAL and ECONOMY off tests/golden/v5_replay.csv
 
 Columns: tick, t, hp, nearest_enemy (id@metres, blank if none in sight), move (x y), aim (yaw pitch,
 radians), fire (slot0 slot1), reason (the bot's mode: zone!/walk/sneak/hold/SAFE, plus what it did),

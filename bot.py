@@ -1,4 +1,11 @@
-"""Mech Royale bot v6: the cube economy.
+"""Mech Royale bot v7: heal (disengage to regen).
+
+v7 = v6 plus (features.HEAL; off = v6 exactly):
+  Regen only starts after 5 s without dealing or taking damage. Below HEAL_ENTER_FRAC of max HP the bot
+  stops firing (crates too), faces the nearest threat and walks to a hide spot nearby: out of the threats'
+  sight behind buildings or under dense canopy, away from them, inside the next circle. It stays
+  disengaged until HEAL_EXIT_FRAC, but fights back (v6, that decision) against anything within
+  HEAL_FIGHT_M; zone hurry and dodging still come first; never once the zone radius is HEAL_FINAL_R or less.
 
 v6 = v5 plus (features.ECONOMY; off = v5 exactly):
   1. Quiet moments (no target, no hit to face, no enemy mech in sight, no mech-like sound within ~160 m
@@ -47,7 +54,8 @@ Layout (behavior identical to the single-file v5):
   movement.py   the legs: dodge, strafe, priority order
   loot.py       taking weapons in reach, the early laser fetch
   economy.py    v6: crates and cubes when quiet
-  features.py   on/off switches for the v5/v6 features (all on = v6, ECONOMY off = v5)
+  heal.py       v7: disengage at low HP so regen can start (state, threats, hide spot)
+  features.py   on/off switches for the v5/v6/v7 features (all on = v7, HEAL off = v6, + ECONOMY off = v5)
 """
 import atexit
 import gc
@@ -56,6 +64,7 @@ import random
 
 import mechfight as mf
 from economy import CRATE_HEIGHT, CRATE_RADIUS, ECON_MAX_M, EconomyMixin  # noqa: F401
+from heal import HealMixin
 from combat import AIM_HEIGHTS, AIM_TOL, MORTAR_MIN_M, MORTAR_RANGE_ERR_M, SHOT_OFFSET_M, CombatMixin, aimed  # noqa: F401
 from loot import (EARLY_DEFAULT_S, FETCH_ARRIVE_M, FETCH_MAX_M, FETCH_SAFE_M, TAKE_KINDS, TAKE_Z_M,  # noqa: F401
                   LootMixin)
@@ -67,8 +76,9 @@ from safety import (ARRIVE_M, EDGE_MARGIN_M, LOOKAHEAD_S, SLOW_DECISION_MS, SLOW
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
-class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin):
-    name = "mech-royale-bot v6"
+class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
+          HealMixin):
+    name = "mech-royale-bot v7"
 
     def __init__(self, hello: mf.Hello):
         cfg = hello["config"]
@@ -99,6 +109,8 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
             self.world = World(hello["map"]["dir"])
         except Exception as e:  # no map: still fight, just without the cover check
             mf.log(f"map not loaded, shots will not check cover: {e!r}")
+        self.healing = False  # v7: disengaged until HP is back up (heal.py)
+        self.hide = None      # v7: (re-plan time, threat key, hide goal or None)
         self.times = []  # seconds per decision
         self.fallbacks = 0
         gc.freeze()  # keep start-up objects out of the collector so collections stay short
@@ -116,6 +128,21 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.note_motion(obs)
         enemies = sorted((m for m in obs["mechs"] if m["kind"] == "mech"), key=lambda m: math.dist(m["pos"], me["pos"]))
         target, face, why = self.choose_target(obs, enemies)
+
+        if self.heal_state(obs):  # v7: always False with features.HEAL off
+            threats = self.threats(obs)
+            hide = self.hide_spot(obs, threats) if threats else None
+            move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, None, None, hide)
+            act.update(move=move, aim=[yaw, 0.0], boost=boost, jump=obs["tick"] % 40 == 0, fire=[False, False])
+            aim = self.heal_aim(obs, threats, face)
+            if aim is not None:
+                act["aim"] = aim
+            self.reload_if_idle(act, me["weapons"], [], None)  # no shots now: top up the magazine
+            if goal is not None and legs is None:
+                mf.draw.point([goal[0], goal[1], z], "#40ff80", 6)
+            mf.draw.label(f"heal/{mode} · hp {me['hp']:.0f} · {len(enemies)} in sight · {len(threats)} threats")
+            return act
+
         quiet = self.quiet(obs, enemies, target, face)  # always False with features.ECONOMY off
 
         move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, target, self.cube_goal(obs) if quiet else None)
