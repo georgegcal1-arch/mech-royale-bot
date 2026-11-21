@@ -10,9 +10,11 @@ v9 (features.DUEL / LEAD_AIM / LEARN_DODGE / SQUAD_AVOID; QUEUE.md turns them on
   LASER_GUARD  H: a laser charging at us: short it with lightning up close, else boost out of its line (guard.py).
   NO_CHIP      I: no gun shots beyond 100 m at a healthy mech; close in via cover instead (nochip.py).
   AMBUSH       J: one hunter closing: wait hidden and silent, spring with lightning inside 43 m (ambush.py).
+  ROOFTOP      K: a roof inside the next circle within 60 m: jet onto it, fight from it with the laser,
+               come down only for the zone (rooftop.py).
   Legs: zone hurry > dodge > hide > squad > laser fetch > cube > (I) approach > duel > strafe > zone walk;
-  then LOOKAHEAD may replace the result, then (J) the ambush, then (H) the laser guard's cover (none of them
-  in zone hurry).
+  then (K) the roof (climb, or stay on it), then LOOKAHEAD may replace the result, then (J) the ambush, then
+  (H) the laser guard's cover (none of them in zone hurry; on a roof, no lookahead, ambush or cover).
 
 v7: heal (disengage to regen).
 
@@ -71,7 +73,8 @@ Layout (behavior identical to the single-file v5):
   loot.py       taking weapons in reach, the early laser fetch
   economy.py    v6: crates and cubes when quiet
   heal.py       v7: disengage at low HP so regen can start (state, threats, hide spot)
-  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py
+  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py,
+                rooftop.py
                 v9 experiments (LIGHTNING: loot/combat/economy)
   features.py   on/off switches for the v5/v6/v7 features and the v9 experiments (defaults = v6)
 """
@@ -100,12 +103,13 @@ from squad import SquadMixin
 from guard import LaserGuardMixin
 from nochip import NoChipMixin
 from ambush import AmbushMixin
+from rooftop import RooftopMixin, find_roofs
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
           HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin,
-          LaserGuardMixin, NoChipMixin, AmbushMixin):
+          LaserGuardMixin, NoChipMixin, AmbushMixin, RooftopMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
@@ -148,6 +152,8 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.guard = None  # v9 LASER_GUARD: (re-plan time, chargers key, cover goal)
         self.approach = None  # v9 NO_CHIP: (re-plan time, target id, goal)
         self.ambush, self.ambush_cool = None, 0.0  # v9 AMBUSH
+        self.roofs = find_roofs(self.world)  # v9 ROOFTOP: standable roofs, once
+        self.roof, self.roof_cool = None, 0.0
         self.times = []  # seconds per decision
         self.fallbacks = 0
         gc.freeze()  # keep start-up objects out of the collector so collections stay short
@@ -190,14 +196,31 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         quiet = self.quiet(obs, enemies, target, face)  # always False with features.ECONOMY off
 
         move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, target, self.cube_goal(obs) if quiet else None)
-        covering = guard is not None and guard[0] == "cover" and guard[1] is not None  # v9 H takes the legs
-        if features.LOOKAHEAD and mode != "zone!" and not covering:  # v9 (lookahead.py): least expected damage under threat
+        roof = self.rooftop_step(obs, mode) if features.ROOFTOP else None  # v9 K (rooftop.py)
+        if roof is not None and roof["phase"] == "hold":  # on the roof: stay on it
+            keep = self.roof_legs(obs, legs)
+            if keep is not None:
+                move, legs, boost, mode = keep, keep, False, "roof"
+                yaw = math.atan2(keep[1], keep[0])
+            else:
+                goal, legs, boost, mode = roof["goal"], None, False, "roof"
+                move = [0.0, 0.0]
+                if goal is not None:
+                    yaw = math.atan2(goal[1] - y, goal[0] - x)
+                    move = [math.cos(yaw), math.sin(yaw)]
+        elif roof is not None:  # on the way: walk, then jump + jet up the wall
+            goal, legs, boost, mode = roof["goal"], None, roof["jet"], "climb" if roof["jet"] else "toroof"
+            yaw = math.atan2(goal[1] - y, goal[0] - x)
+            move = [math.cos(yaw), math.sin(yaw)]
+        covering = (guard is not None and guard[0] == "cover" and guard[1] is not None  # v9 H takes the legs
+                    and roof is None)  # (its spots are on the ground)
+        if features.LOOKAHEAD and mode != "zone!" and not covering and roof is None:  # v9 (lookahead.py): least expected damage under threat
             look = self.lookahead(obs, enemies, move, boost)
             if look is not None:
                 move, boost, legs, mode = look, False, look, "look"
                 yaw = math.atan2(look[1], look[0])
         amb = None
-        if features.AMBUSH and mode != "zone!" and guard is None:  # v9 J (ambush.py): wait hidden, silent
+        if features.AMBUSH and mode != "zone!" and guard is None and roof is None:  # v9 J (ambush.py): wait hidden, silent
             amb = self.ambush_step(obs, enemies, mode)
             if amb is not None:
                 goal, legs, boost, mode = amb["goal"], None, False, "ambush"
@@ -211,6 +234,8 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
             yaw = math.atan2(goal[1] - y, goal[0] - x)
             move = [math.cos(yaw), math.sin(yaw)]
         act.update(move=move, aim=[yaw, 0.0], boost=boost, jump=obs["tick"] % 40 == 0, fire=[False, False])
+        if roof is not None:  # v9 K: jump only to start a climb (a hop on the roof could carry us off it)
+            act["jump"] = bool(roof["jet"] and me.get("grounded", True))
 
         # torso
         if amb is not None:  # v9 J: on the hunter, no shots, the gun topped up
