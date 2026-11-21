@@ -4,6 +4,7 @@ import json
 import math
 import time
 
+import features
 import mechfight as mf
 from perception import _finite
 
@@ -15,7 +16,8 @@ ARRIVE_M = 3.0         # closer than this to the spot = stand still
 SLOW_FRAC = 0.9        # slow walk = 90% of sound.step_speed: no footstep sounds
 SPARE_S = 10.0         # walk at full speed if slow walking would reach the spot later than shrink_end - SPARE_S
 
-UPGRADE = "armor"
+UPGRADE = "armor"  # v5: this if offered, else choice 0
+UPGRADE_PREFS = ("plating", "armor", "nanites")  # v6 (features.ECONOMY): first one offered, else choice 0
 
 # --- safety net (v2) ---
 SLOW_DECISION_MS = 10.0  # log any decision slower than this
@@ -37,10 +39,11 @@ def zone_at(z, t):
 
 
 def pick_upgrade(offer):
-    """Index of the upgrade to take: UPGRADE if offered, else 0."""
-    for i, c in enumerate(offer.get("choices") or []):
-        if c.get("id") == UPGRADE:
-            return i
+    """Index of the upgrade to take: the first of UPGRADE_PREFS offered (v5: UPGRADE), else 0."""
+    ids = [c.get("id") for c in offer.get("choices") or []]
+    for want in (UPGRADE_PREFS if features.ECONOMY else (UPGRADE,)):
+        if want in ids:
+            return ids.index(want)
     return 0
 
 

@@ -4,6 +4,8 @@ one CSV row per decision.
     python tests/replay.py                 # -> tests/out/decisions.csv
     python tests/replay.py --out my.csv
     python tests/replay.py --no-timing     # blank ms column: byte-comparable across runs
+    python tests/replay.py --no-timing --off ECONOMY   # a features.py switch off (repeatable);
+                                           # ECONOMY off must equal tests/golden/v5_replay.csv
 
 Columns: tick, t, hp, nearest_enemy (id@metres, blank if none in sight), move (x y), aim (yaw pitch,
 radians), fire (slot0 slot1), reason (the bot's mode: zone!/walk/sneak/hold/SAFE, plus what it did),
@@ -17,6 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import OBS, REPO, new_bot, respond  # noqa: E402
+import features  # noqa: E402
 
 COLUMNS = ["tick", "t", "hp", "nearest_enemy", "move", "aim", "fire", "reason", "ms"]
 
@@ -78,7 +81,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--out", default=os.path.join(REPO, "tests", "out", "decisions.csv"))
     ap.add_argument("--no-timing", action="store_true", help="leave the ms column blank (for byte-for-byte comparisons)")
+    ap.add_argument("--off", action="append", default=[], metavar="SWITCH", help="turn a features.py switch off (repeatable)")
     a = ap.parse_args()
+    for name in a.off:
+        if not isinstance(getattr(features, name, None), bool):
+            ap.error(f"no features.py switch {name!r}")
+        setattr(features, name, False)
     rows, bot = replay(a.out, timing=not a.no_timing)
     worst = max((float(r["ms"]) for r in rows if r["ms"]), default=float("nan"))
     firing = sum(1 for r in rows if "firing" in r["reason"])

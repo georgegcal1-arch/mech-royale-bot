@@ -1,4 +1,4 @@
-"""The legs (v5): zone hurry > dodge > laser fetch > strafe > v2 zone walk."""
+"""The legs (v5): zone hurry > dodge > laser fetch > (v6) cube > strafe > v2 zone walk."""
 import math
 
 import features
@@ -81,9 +81,10 @@ class MovementMixin:
         s = (1 if side > 0 else -1) if abs(side) > 1e-6 else self.strafe_dir
         return [nx * s, ny * s]
 
-    def legs(self, obs, enemies, target):
-        """(move, yaw, boost, goal, legs, mode): zone hurry > dodge > laser fetch > strafe > zone walk.
-        `legs` is the strafe/dodge unit move (None when walking to `goal` or standing)."""
+    def legs(self, obs, enemies, target, cube=None):
+        """(move, yaw, boost, goal, legs, mode): zone hurry > dodge > laser fetch > cube > strafe > zone walk.
+        `legs` is the strafe/dodge unit move (None when walking to `goal` or standing). `cube` is the
+        (x, y) of a cube to collect (economy.py), or None."""
         me = obs["self"]
         x, y = me["pos"][0], me["pos"][1]
         goal, speed, boost, mode = self.zone_move(obs)
@@ -100,6 +101,8 @@ class MovementMixin:
                 goal, speed, boost, mode = fetch, 1.0, False, "fetch"
                 if math.hypot(fetch[0] - x, fetch[1] - y) <= FETCH_ARRIVE_M:
                     goal = None
+            elif cube:
+                goal, speed, boost, mode = cube, 1.0, False, "cube"
             elif features.STRAFE and target is not None and math.dist(target["pos"], me["pos"]) <= self._reach(me):
                 s = self.strafe_move(obs, target)
                 if s:

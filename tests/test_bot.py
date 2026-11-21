@@ -191,7 +191,15 @@ class Housekeeping(unittest.TestCase):
         b = B.Bot(hello())
         ch = lambda *ids: {"id": 1, "expires": 15, "choices": [{"id": i, "name": i, "desc": ""} for i in ids]}
         self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "armor")))["pick"], 2)
-        self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "plating")))["pick"], 0)
+        # v6 (features.ECONOMY): plating > armor > nanites; v5 took choice 0 here
+        self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "plating")))["pick"], 2)
+        self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "gyros")))["pick"], 0)
+        import features
+        was, features.ECONOMY = features.ECONOMY, False
+        try:
+            self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "plating")))["pick"], 0)
+        finally:
+            features.ECONOMY = was
 
 
 class Laser(unittest.TestCase):

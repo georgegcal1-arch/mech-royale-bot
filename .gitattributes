@@ -1,2 +1,4 @@
 # The scorer builds on Linux: keep LF line endings in the repo and working tree.
 * text=auto eol=lf
+# Golden replay CSVs are compared byte for byte (the csv module writes CRLF): never convert them.
+tests/golden/*.csv -text

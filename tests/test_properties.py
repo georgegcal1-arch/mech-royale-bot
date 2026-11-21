@@ -4,7 +4,7 @@
   2. valid action            check.py's own schema check, the tick echo, valid JSON, line size
   3. under 10 ms             every decision, measured inside act()
   4. picks an upgrade        an offer with choices gets a valid `pick` index
-  5. fires only at a target  `fire` is set only while something to shoot (mech or NPC) is in sight
+  5. fires only at a target  `fire` is set only while something to shoot (mech, NPC, or v6: crate) is in sight
 
 The game-range bot loads the real map, so cover checks (world.py) are part of every decision.
 """
@@ -35,8 +35,8 @@ def _respond(obs, bot=BOT):
 
 
 def _target_in_sight(obs):
-    """Any visible mech or NPC drone that isn't us."""
-    return any(m["id"] != obs["self"]["id"] for m in obs["mechs"])
+    """Any visible mech or NPC drone that isn't us, or (v6 economy) a crate."""
+    return any(m["id"] != obs["self"]["id"] for m in obs["mechs"]) or bool(obs.get("crates"))
 
 
 # --- sanity: the generators really produce schema-valid observations -------------------------

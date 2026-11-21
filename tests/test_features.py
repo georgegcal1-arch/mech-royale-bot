@@ -8,7 +8,9 @@ import features
 from conftest import OBS, action_problems, new_bot, respond
 from replay import replay
 
-SWITCHES = ["STRAFE", "DODGE", "LASER_FETCH", "CIRCULAR_AIM", "LOWHP_TARGETING"]
+SWITCHES = ["STRAFE", "DODGE", "LASER_FETCH", "CIRCULAR_AIM", "LOWHP_TARGETING", "ECONOMY"]
+# ECONOMY never triggers in the recorded match (its crates are outside the next circle or have a mech in
+# sight); tests/test_economy.py covers it with built scenarios and checks ECONOMY off == v5.
 
 
 def _labels(bot):
