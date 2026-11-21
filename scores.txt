@@ -6,3 +6,4 @@ v4 = 1.63   # survival: low-HP retreat to cover, quiet walk, NPC avoidance (comm
 v5 = 2.60   # kills: lowest-HP target, strafe, dodge, early laser fetch, circular aim; v3 base (commit "v5")
 v6 = 2.92   # economy: crates + cubes when quiet, upgrades plating > armor > nanites; v5 base (commit d4487cb "v6: economy (crates, cubes, upgrades)")
 v7 = 2.67   # heal: below 45% HP hold fire + hide (buildings/canopy) until 85%, fight back within 40 m, not when zone <= 70 m; v6 base (commit 3404300 "v7: heal (disengage to regen)")
+v7b = 2.81  # v7 with heal at 30% HP, resume at 70% (commit d0740f1 "v7b: heal at 30%")
