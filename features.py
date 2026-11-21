@@ -36,7 +36,7 @@ ECONOMY = True
 HEAL = False  # v7/v7b scored below v6: kept for experiments, off = v6 exactly
 
 # v9 experiments: all off = v6 exactly
-DUEL = False
+DUEL = True  # exp A (QUEUE.md)
 LEAD_AIM = False
 LEARN_DODGE = False
 SQUAD_AVOID = False
