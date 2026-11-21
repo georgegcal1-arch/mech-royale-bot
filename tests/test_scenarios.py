@@ -58,7 +58,8 @@ def test_safe_fallback_still_answers_upgrade_offer(bot, monkeypatch):
 
 
 # --- low HP ------------------------------------------------------------------------------
-def test_low_hp_backs_away_from_enemy_ahead(bot):  # v7 heal (was a strategy gap through v6)
+@strategy_gap("v6 has no low-HP retreat (v7's heal does it, but scored lower and is off by default)")
+def test_low_hp_backs_away_from_enemy_ahead(bot):
     """At ~10% HP with a full-HP enemy 60 m straight ahead, don't keep walking into it."""
     obs = base_obs(100)
     quiet, _ = respond(bot, obs)

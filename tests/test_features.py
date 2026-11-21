@@ -1,11 +1,11 @@
-"""features.py switches: all on by default, and each one off still answers every recorded observation
+"""features.py switches: the defaults are v6 (all on but HEAL), and each one off still answers every recorded observation
 validly while actually turning its feature off."""
 import math
 
 import pytest
 
 import features
-from conftest import OBS, action_problems, new_bot, respond
+from conftest import OBS, REPO, action_problems, new_bot, respond
 from replay import replay
 
 SWITCHES = ["STRAFE", "DODGE", "LASER_FETCH", "CIRCULAR_AIM", "LOWHP_TARGETING", "ECONOMY", "HEAL"]
@@ -23,8 +23,16 @@ def _labels(bot):
     return out
 
 
-def test_all_switches_on_by_default():
-    assert all(getattr(features, s) is True for s in SWITCHES)
+def test_defaults_are_v6():
+    assert all(getattr(features, s) is True for s in SWITCHES if s != "HEAL")
+    assert features.HEAL is False, "heal is off by default (v7 2.67, v7b 2.81 < v6 2.92)"
+
+
+def test_default_replay_matches_v6_exactly(tmp_path):
+    out = tmp_path / "default.csv"
+    replay(str(out), timing=False)
+    with open(f"{REPO}/tests/golden/v6_replay.csv", "rb") as f:
+        assert out.read_bytes() == f.read(), "the default switches must replay exactly as v6"
 
 
 def test_no_timing_replay_is_byte_identical_across_runs(tmp_path):
@@ -37,6 +45,7 @@ def test_no_timing_replay_is_byte_identical_across_runs(tmp_path):
 @pytest.mark.parametrize("switch, mark", [("STRAFE", "strafe "), ("DODGE", "dodge "), ("LASER_FETCH", "fetch "),
                                           ("LOWHP_TARGETING", " weakest "), ("HEAL", "heal/")])
 def test_switch_off_removes_its_behaviour(monkeypatch, switch, mark):
+    monkeypatch.setattr(features, switch, True)  # HEAL is off by default
     assert any(mark in lab for lab in _labels(new_bot())), f"the recorded match never shows {mark!r}"
     monkeypatch.setattr(features, switch, False)
     labels = _labels(new_bot())

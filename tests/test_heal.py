@@ -1,6 +1,8 @@
 """v7 heal (features.HEAL): disengage at low HP so regen can start, and v6 exactly with it off."""
 import math
 
+import pytest
+
 import features
 import heal
 from conftest import DECISION_BUDGET_MS, OBS, REPO, base_obs, new_bot, reset, respond
@@ -10,6 +12,12 @@ GOLDEN = f"{REPO}/tests/golden/v6_replay.csv"
 MAX_HP = 1400.0
 LOW = features.HEAL_ENTER_FRAC - 0.1  # clearly below the heal threshold
 MID = 0.5 * (features.HEAL_ENTER_FRAC + features.HEAL_EXIT_FRAC)  # between the thresholds
+
+
+@pytest.fixture(autouse=True)
+def heal_on(monkeypatch):
+    """HEAL is off by default (v6 behaviour); these tests are about the feature itself."""
+    monkeypatch.setattr(features, "HEAL", True)
 
 
 def _obs(hp_frac, i=100):
