@@ -26,8 +26,8 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 |------|---------------------|-----------------|--------|-------|--------|--------|
 | A | duel (`DUEL`) | DUEL | 3b7c5ac | **3.21** | +0.29 vs 2.92 | **winner: kept on** |
 | F | lightning (`LIGHTNING`) | DUEL + LIGHTNING | 21dbb8f | **3.46** | +0.25 vs 3.21 | **winner: kept on** |
-| C | learn_dodge (`LEARN_DODGE`) | DUEL + LIGHTNING + LEARN_DODGE | (exp C commit) | | needs 3.61 | |
-| G | lookahead (`LOOKAHEAD`) | best + LOOKAHEAD | | | | |
+| C | learn_dodge (`LEARN_DODGE`) | DUEL + LIGHTNING + LEARN_DODGE | 6dc2b3e | **3.46** | +0.00 vs 3.46 | loser: turned off |
+| G | lookahead (`LOOKAHEAD`) | DUEL + LIGHTNING + LOOKAHEAD | (exp G commit) | | needs 3.61 | |
 | B | lead_aim (`LEAD_AIM`) | best + LEAD_AIM | | | | |
 | D | squad_avoid (`SQUAD_AVOID`) | best + SQUAD_AVOID | | | | |
 
@@ -42,4 +42,4 @@ already is the combination of the winners.
 - All v9 switches are listed in `features.V9_SWITCHES`. `conftest.v9_off` and `replay.py --v6` turn them all
   off for the v6 golden comparisons, so those stay valid whatever the defaults are.
 
-Status: **C ready to submit** (DUEL + LIGHTNING + LEARN_DODGE).
+Status: **G ready to submit** (DUEL + LIGHTNING + LOOKAHEAD).
