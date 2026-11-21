@@ -1,0 +1,3 @@
+# Mech Royale practice scores (mean of 16 - place over 48 matches; 15 = always win)
+v1 = 1.15   # kit example bot
+v2 = ?      # safety net + zone awareness (commit "v2: safety net + zone")
