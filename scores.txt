@@ -7,3 +7,4 @@ v5 = 2.60   # kills: lowest-HP target, strafe, dodge, early laser fetch, circula
 v6 = 2.92   # economy: crates + cubes when quiet, upgrades plating > armor > nanites; v5 base (commit d4487cb "v6: economy (crates, cubes, upgrades)")
 v7 = 2.67   # heal: below 45% HP hold fire + hide (buildings/canopy) until 85%, fight back within 40 m, not when zone <= 70 m; v6 base (commit 3404300 "v7: heal (disengage to regen)")
 v7b = 2.81  # v7 with heal at 30% HP, resume at 70% (commit d0740f1 "v7b: heal at 30%")
+expA = 3.21  # v9 exp A: DUEL on, v6 base (commit 3b7c5ac "exp A: duel on"); +0.29 over 2.92 -> counts: kept on, new bar 3.21
