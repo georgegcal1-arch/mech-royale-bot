@@ -4,7 +4,7 @@ import math
 import pytest
 
 import features
-from conftest import DECISION_BUDGET_MS, HELLO, OBS, REPO, action_problems, base_obs, new_bot, respond, yaw_diff
+from conftest import DECISION_BUDGET_MS, HELLO, OBS, REPO, action_problems, base_obs, new_bot, respond, v9_off, yaw_diff
 from replay import replay
 from safety import pick_upgrade
 
@@ -235,6 +235,7 @@ def test_many_crates_and_cubes_stay_fast():
 def test_economy_off_replay_matches_v5_exactly(monkeypatch, tmp_path):
     monkeypatch.setattr(features, "ECONOMY", False)
     monkeypatch.setattr(features, "HEAL", False)  # v7's heal is on top of v6
+    v9_off(monkeypatch)
     out = tmp_path / "off.csv"
     replay(str(out), timing=False)
     with open(GOLDEN, "rb") as f:

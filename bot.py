@@ -1,4 +1,13 @@
-"""Mech Royale bot v7: heal (disengage to regen).
+"""Mech Royale bot v9: four experiments behind switches, all off by default (= v6 exactly).
+
+v9 (features.DUEL / LEAD_AIM / LEARN_DODGE / SQUAD_AVOID; QUEUE.md turns them on one at a time):
+  DUEL         1v1: weapon by range, legs circle toward the enemy's rear at our weapon's range (duel.py).
+  LEAD_AIM     per-mech motion model picked by back-testing its track, pooled prior (lead.py).
+  LEARN_DODGE  learn the shooters' lead fraction from their bullets; strafe/dodge to beat it (learn_dodge.py).
+  SQUAD_AVOID  2+ mechs engaging: walk where at most one has a line; target the most isolated (squad.py).
+  Legs: zone hurry > dodge > hide > squad > laser fetch > cube > duel > strafe > zone walk.
+
+v7: heal (disengage to regen).
 
 v7 = v6 plus (features.HEAL; off = v6 exactly):
   Regen only starts after 5 s without dealing or taking damage. Below HEAL_ENTER_FRAC of max HP the bot
@@ -55,13 +64,15 @@ Layout (behavior identical to the single-file v5):
   loot.py       taking weapons in reach, the early laser fetch
   economy.py    v6: crates and cubes when quiet
   heal.py       v7: disengage at low HP so regen can start (state, threats, hide spot)
-  features.py   on/off switches for the v5/v6/v7 features (all on = v7, HEAL off = v6, + ECONOMY off = v5)
+  duel.py, lead.py, learn_dodge.py, squad.py   v9 experiments
+  features.py   on/off switches for the v5/v6/v7 features and the v9 experiments (defaults = v6)
 """
 import atexit
 import gc
 import math
 import random
 
+import features
 import mechfight as mf
 from economy import CRATE_HEIGHT, CRATE_RADIUS, ECON_MAX_M, EconomyMixin  # noqa: F401
 from heal import HealMixin
@@ -73,12 +84,16 @@ from perception import (ATTACKER_WINDOW_S, LATENCY_S, MOTION_DT_MAX, MOTION_MIN_
                         OMEGA_MAX, PerceptionMixin, _finite, _hp, _hp_frac, _wrap)
 from safety import (ARRIVE_M, EDGE_MARGIN_M, LOOKAHEAD_S, SLOW_DECISION_MS, SLOW_FRAC, SPARE_S,  # noqa: F401
                     SPOT_FRAC, UPGRADE, UPGRADE_PREFS, SafetyMixin, pick_upgrade, zone_at)
+from duel import DuelMixin
+from lead import LeadMixin
+from learn_dodge import LearnDodgeMixin
+from squad import SquadMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
-          HealMixin):
-    name = "mech-royale-bot v7"
+          HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin):
+    name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
         cfg = hello["config"]
@@ -111,6 +126,9 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
             mf.log(f"map not loaded, shots will not check cover: {e!r}")
         self.healing = False  # v7: disengaged until HP is back up (heal.py)
         self.hide = None      # v7: (re-plan time, threat key, hide goal or None)
+        self.tracks, self.lead_err, self.lead_pool, self.lead_state = {}, {}, [[], 0], {}  # v9 LEAD_AIM
+        self.bullets_seen, self.k_pool, self.k_by = {}, [0.0, 0], {}  # v9 LEARN_DODGE
+        self.engaging, self.squad = [], None  # v9 SQUAD_AVOID
         self.times = []  # seconds per decision
         self.fallbacks = 0
         gc.freeze()  # keep start-up objects out of the collector so collections stay short
@@ -126,7 +144,11 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
 
         self.note_damage(obs)
         self.note_motion(obs)
+        if features.LEARN_DODGE:
+            self.note_bullets(obs)
         enemies = sorted((m for m in obs["mechs"] if m["kind"] == "mech"), key=lambda m: math.dist(m["pos"], me["pos"]))
+        if features.SQUAD_AVOID:
+            self.engaging = self.engagers(obs, enemies)
         target, face, why = self.choose_target(obs, enemies)
 
         if self.heal_state(obs):  # v7: always False with features.HEAL off
@@ -150,7 +172,10 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
 
         # torso
         if target is not None:
-            aim, fire = self.engage(obs, target, mode == "zone!")
+            if features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)
+                aim, fire = self.duel_engage(obs, target, mode == "zone!")
+            else:
+                aim, fire = self.engage(obs, target, mode == "zone!")
             act.update(aim=aim, fire=fire)
         elif face is not None:
             act["aim"] = [face, 0.0]

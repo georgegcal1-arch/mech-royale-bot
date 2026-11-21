@@ -20,6 +20,7 @@ SCHEMA = os.path.join(KIT, "mechfight.schema.json")
 sys.path.insert(0, REPO)
 import mechfight as mf  # noqa: E402
 import bot as botmod  # noqa: E402
+import features  # noqa: E402
 
 if not (os.path.exists(STREAM) and os.path.exists(SCHEMA)):
     pytest.exit(f"mechfight kit not found at {KIT} (set MECHFIGHT_KIT)", returncode=4)
@@ -63,6 +64,12 @@ def load_check_module():
 
 CHECK = load_check_module()
 VALIDATOR = CHECK.Schema(SCHEMA)
+
+
+def v9_off(monkeypatch):
+    """Turn the v9 experiment switches off (whatever QUEUE.md set as defaults): the v6 golden replays."""
+    for s in features.V9_SWITCHES:
+        monkeypatch.setattr(features, s, False)
 
 
 def new_bot():

@@ -7,6 +7,9 @@ one CSV row per decision.
     python tests/replay.py --no-timing --off HEAL      # a features.py switch off (repeatable);
                                            # HEAL off must equal tests/golden/v6_replay.csv,
                                            # HEAL and ECONOMY off tests/golden/v5_replay.csv
+    python tests/replay.py --on DUEL       # a switch on (repeatable)
+    python tests/replay.py --no-timing --v6   # the v9 experiment switches off, whatever their defaults:
+                                           # must equal tests/golden/v6_replay.csv
 
 Columns: tick, t, hp, nearest_enemy (id@metres, blank if none in sight), move (x y), aim (yaw pitch,
 radians), fire (slot0 slot1), reason (the bot's mode: zone!/walk/sneak/hold/SAFE, plus what it did),
@@ -83,11 +86,14 @@ def main():
     ap.add_argument("--out", default=os.path.join(REPO, "tests", "out", "decisions.csv"))
     ap.add_argument("--no-timing", action="store_true", help="leave the ms column blank (for byte-for-byte comparisons)")
     ap.add_argument("--off", action="append", default=[], metavar="SWITCH", help="turn a features.py switch off (repeatable)")
+    ap.add_argument("--on", action="append", default=[], metavar="SWITCH", help="turn a features.py switch on (repeatable)")
+    ap.add_argument("--v6", action="store_true", help="turn the v9 experiment switches (features.V9_SWITCHES) off")
     a = ap.parse_args()
-    for name in a.off:
+    off = list(a.off) + (list(features.V9_SWITCHES) if a.v6 else [])
+    for name, value in [(n, False) for n in off] + [(n, True) for n in a.on]:
         if not isinstance(getattr(features, name, None), bool):
             ap.error(f"no features.py switch {name!r}")
-        setattr(features, name, False)
+        setattr(features, name, value)
     rows, bot = replay(a.out, timing=not a.no_timing)
     worst = max((float(r["ms"]) for r in rows if r["ms"]), default=float("nan"))
     firing = sum(1 for r in rows if "firing" in r["reason"])

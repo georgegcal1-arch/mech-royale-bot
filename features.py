@@ -13,6 +13,19 @@ They are read at decision time (features.X), so a test or an experiment can flip
   HEAL             v7: below HEAL_ENTER_FRAC of max HP, stop firing and hide from known enemies inside the
                    next circle until HEAL_EXIT_FRAC, fighting back within HEAL_FIGHT_M; never once the zone
                    radius is HEAL_FINAL_R or less (heal.py); off = v6. Off by default.
+
+v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a time):
+  DUEL         exactly one enemy mech, our target, in reach: weapon by range (lightning <= its range, the
+               mortar only on a slow target) and the legs circle it toward its rear while holding a range
+               (duel.py); off = v6's strafe and engage.
+  LEAD_AIM     predictions pick, per mech, the motion model (straight, circular, mean velocity, standing)
+               that best back-tests on its recent track, pooled over all mechs as a prior (lead.py);
+               off = CIRCULAR_AIM's arc.
+  LEARN_DODGE  learn how far enemy shooters lead us (0 = at us, 1 = fully led) from their bullets, pooled
+               (house bots share code): leaders -> short strafe legs and dodge against our motion; direct
+               aimers -> long strafe legs and dodge with it (learn_dodge.py); off = v5's dodge and strafe.
+  SQUAD_AVOID  two or more enemy mechs engaging us: walk to where at most one has a line of fire, and
+               target the most isolated one (squad.py); off = v6.
 """
 STRAFE = True
 DODGE = True
@@ -21,6 +34,13 @@ CIRCULAR_AIM = True
 LOWHP_TARGETING = True
 ECONOMY = True
 HEAL = False  # v7/v7b scored below v6: kept for experiments, off = v6 exactly
+
+# v9 experiments: all off = v6 exactly
+DUEL = False
+LEAD_AIM = False
+LEARN_DODGE = False
+SQUAD_AVOID = False
+V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...

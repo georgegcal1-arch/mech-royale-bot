@@ -1,4 +1,5 @@
-"""The legs (v5): zone hurry > dodge > laser fetch > (v6) cube > strafe > v2 zone walk."""
+"""The legs (v5): zone hurry > dodge > (v7) hide > (v9) squad > laser fetch > (v6) cube > (v9) duel > strafe
+> v2 zone walk."""
 import math
 
 import features
@@ -28,14 +29,20 @@ class MovementMixin:
                 return False
         return True
 
+    def _strafe_s(self):
+        """(min, max) seconds per strafe leg: v5's, or (features.LEARN_DODGE) what the shooters' lead calls for."""
+        return self.strafe_window((STRAFE_MIN_S, STRAFE_MAX_S)) if features.LEARN_DODGE else (STRAFE_MIN_S, STRAFE_MAX_S)
+
     def _new_strafe(self, t):
         self.strafe_dir = -self.strafe_dir
-        self.strafe_until = t + self.rng.uniform(STRAFE_MIN_S, STRAFE_MAX_S)
+        self.strafe_until = t + self.rng.uniform(*self._strafe_s())
 
     def strafe_move(self, obs, target):
         """Unit move perpendicular to the target, or None if both sides are blocked."""
         me, t = obs["self"], obs["t"]
         x, y = me["pos"][0], me["pos"][1]
+        if features.LEARN_DODGE:  # a leg planned before we learned the shooters lead may be too long
+            self.strafe_until = min(self.strafe_until, t + self._strafe_s()[1])
         if t >= self.strafe_until:
             self._new_strafe(t)
         b = math.atan2(target["pos"][1] - y, target["pos"][0] - x)
@@ -79,11 +86,13 @@ class MovementMixin:
         nx, ny = -by / hb, bx / hb
         side = -(nx * ox + ny * oy)  # where we are relative to the bullet's closest point, across its path
         s = (1 if side > 0 else -1) if abs(side) > 1e-6 else self.strafe_dir
+        if features.LEARN_DODGE:  # v9: against or with our sideways motion, by how its shooter leads
+            s = self.dodge_side(p, nx, ny, mv, s)
         return [nx * s, ny * s]
 
     def legs(self, obs, enemies, target, cube=None, hide=None):
-        """(move, yaw, boost, goal, legs, mode): zone hurry > dodge > (v7) hide > laser fetch > cube > strafe
-        > zone walk. `legs` is the strafe/dodge unit move (None when walking to `goal` or standing). `cube`
+        """(move, yaw, boost, goal, legs, mode): zone hurry > dodge > (v7) hide > (v9) squad > laser fetch > cube
+        > (v9) duel > strafe > zone walk. `legs` is the strafe/dodge unit move (None when walking to `goal` or standing). `cube`
         is the (x, y) of a cube to collect (economy.py), or None. `hide` is (goal or None, boost) from
         heal.py while disengaging from threats, else None."""
         me = obs["self"]
@@ -93,6 +102,7 @@ class MovementMixin:
         if mode != "zone!":
             dodge = self.dodge_move(obs) if features.DODGE else None
             fetch = None if dodge or hide or not features.LASER_FETCH else self.fetch_goal(obs, enemies)
+            squad = self.squad_goal(obs) if features.SQUAD_AVOID and not dodge and not hide else None  # v9
             if dodge:
                 legs, mode = dodge, "dodge"
                 if target is not None:  # keep strafing the way we dodged
@@ -100,16 +110,22 @@ class MovementMixin:
                     self.strafe_dir = 1 if dodge[0] * -math.sin(b) + dodge[1] * math.cos(b) >= 0 else -1
             elif hide:
                 goal, speed, boost, mode = hide[0], 1.0, hide[1], "hide" if hide[0] else "cover"
+            elif squad:
+                goal, speed, boost, mode = squad, 1.0, True, "squad"
             elif fetch:
                 goal, speed, boost, mode = fetch, 1.0, False, "fetch"
                 if math.hypot(fetch[0] - x, fetch[1] - y) <= FETCH_ARRIVE_M:
                     goal = None
             elif cube:
                 goal, speed, boost, mode = cube, 1.0, False, "cube"
-            elif features.STRAFE and target is not None and math.dist(target["pos"], me["pos"]) <= self._reach(me):
-                s = self.strafe_move(obs, target)
+            elif target is not None and math.dist(target["pos"], me["pos"]) <= self._reach(me):
+                s = None
+                if features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)
+                    s, how = self.duel_move(obs, target), "duel"
+                if s is None and features.STRAFE:
+                    s, how = self.strafe_move(obs, target), "strafe"
                 if s:
-                    legs, mode = s, "strafe"
+                    legs, mode = s, how
         nc = obs["zone"]["next_center"]
         if legs is not None:
             move, boost = legs, False

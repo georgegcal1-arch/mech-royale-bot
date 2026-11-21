@@ -68,8 +68,9 @@ class CombatMixin:
         return yaw, pitch, d, q, ok
 
     # ------------------------------------------------------------------ the fight (torso)
-    def engage(self, obs, m, legs_hurry):
-        """(aim, fire) against target m."""
+    def engage(self, obs, m, legs_hurry, mortar=True, lightning=False):
+        """(aim, fire) against target m. v9 (duel.py): `mortar` False keeps the mortar quiet; `lightning`
+        True fires a held lightning gun at a target inside its range and cone."""
         me = obs["self"]
         x, y, z = me["pos"]
         st = me["stats"]
@@ -114,10 +115,26 @@ class CombatMixin:
             elif ok and w.get("cooldown", 0) <= 0 and not legs_hurry:  # charging halves our speed
                 fire[i] = True
 
+        # v9 duel: lightning (no lead: a 30-degree cone) at a target in range, the gun's aim kept
+        arc = slots.get("lightning") if lightning else None
+        if arc:
+            i, w = arc
+            ls = w.get("stats", {})
+            q = self.predict(m, LATENCY_S, 0.5 * height)
+            d = math.dist(origin, q)
+            yaw, pitch = self.angles(origin, q)
+            if (d <= ls.get("range", 45.0) - 2.0 and (w.get("cooldown") or 0) <= 0
+                    and (me.get("energy") or 0) >= ls.get("energy", 3.0)
+                    and abs(_wrap(aim_now[0] - yaw)) <= 0.4 * math.radians(ls.get("cone_deg", 30.0))
+                    and self.clear(origin, q)):
+                fire[i] = True
+            if aim is None:
+                aim = [yaw, pitch]
+
         # mortar: lob when ready and the arc is clear; it takes the aim until it fires
-        mortar = slots.get("mortar")
-        if mortar:
-            i, w = mortar
+        tube_w = slots.get("mortar") if mortar else None
+        if tube_w:
+            i, w = tube_w
             ms = w.get("stats", {})
             tube = (x, y, z + st.get("height", 9.0) + 0.5)
             sol = self.mortar_solution(tube, m, ms) if w.get("cooldown", 0) <= 0 else None

@@ -70,6 +70,8 @@ class PerceptionMixin:
                     w = prev[2]  # same observation again
             motion[m["id"]] = (t, h, w)
         self.motion = motion
+        if features.LEAD_AIM:
+            self.note_tracks(obs)  # v9 (lead.py)
 
     # ------------------------------------------------------------------ geometry
     def _size(self, m):
@@ -81,10 +83,14 @@ class PerceptionMixin:
 
     def predict(self, m, dt, z_off):
         """Where m's aim point (z_off above its feet) will be dt seconds from now: along an arc at its
-        estimated turn rate (a straight line if it isn't turning, or with features.CIRCULAR_AIM off)."""
+        estimated turn rate (a straight line if it isn't turning, or with features.CIRCULAR_AIM off);
+        with features.LEAD_AIM, horizontally along the model that best fits its track (lead.py)."""
         (px, py, pz), (vx, vy, vz) = m["pos"], m["vel"]
+        xy = self.lead_xy(m, dt) if features.LEAD_AIM and m.get("kind") == "mech" else None  # v9 (lead.py)
         w = self.motion.get(m.get("id"), (0, None, 0.0))[2] if features.CIRCULAR_AIM and m.get("kind") == "mech" else 0.0
-        if abs(w) > 1e-3:
+        if xy is not None:
+            qx, qy = xy
+        elif abs(w) > 1e-3:
             s, c = math.sin(w * dt), math.cos(w * dt)
             qx, qy = px + (vx * s - vy * (1 - c)) / w, py + (vy * s + vx * (1 - c)) / w
         else:

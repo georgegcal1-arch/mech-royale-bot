@@ -46,7 +46,8 @@ class TargetingMixin:
     def choose_target(self, obs, enemies):
         """(target or None, bearing to face or None, why). Mechs first: the lowest-HP clear mech (sticky),
         unless a mech is hitting us and the current target isn't nearly dead; then v3's fallbacks.
-        With features.LOWHP_TARGETING off, only v3's order."""
+        With features.LOWHP_TARGETING off, only v3's order. v9 features.SQUAD_AVOID: with two or more mechs
+        engaging us, the most isolated clear mech, and an attacker doesn't take over."""
         t = obs["t"]
         seen = {m["id"]: m for m in obs["mechs"]}
         dmg, last = {}, {}
@@ -55,17 +56,20 @@ class TargetingMixin:
             last[by] = (ht, bearing)
         is_mech = lambda i: seen[i]["kind"] == "mech" if i in seen else (isinstance(i, (int, float)) and 0 <= i < 100)
 
+        squad = features.SQUAD_AVOID and len(self.engaging) >= 2  # v9 (squad.py): the most isolated instead
         if features.LOWHP_TARGETING:
             hitting = sorted((i for i in dmg if is_mech(i) and t - last[i][0] <= HIT_RECENT_S), key=lambda i: -dmg[i])
             target, why = None, ""
             clear = self.clear_mechs(obs, enemies)
-            if clear:
+            if clear and squad:
+                target, why = self.isolated_target(clear, enemies), "isolated"
+            elif clear:
                 hp, _, best = min(clear, key=lambda c: (c[0], c[1]))
                 cur = next((c for c in clear if c[2]["id"] == self.target_id), None)
                 if cur is not None and hp > cur[0] - STICKY_HP:
                     best = cur[2]
                 target, why = best, "weakest"
-            if hitting and (target is None or (hitting[0] != target["id"] and _hp_frac(target) >= FINISH_FRAC)):
+            if hitting and not (squad and target is not None) and (target is None or (hitting[0] != target["id"] and _hp_frac(target) >= FINISH_FRAC)):
                 a = hitting[0]
                 if a in seen:
                     target, why = seen[a], "attacker"

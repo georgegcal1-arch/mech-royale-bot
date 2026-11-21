@@ -5,7 +5,7 @@ import pytest
 
 import features
 import heal
-from conftest import DECISION_BUDGET_MS, OBS, REPO, base_obs, new_bot, reset, respond
+from conftest import DECISION_BUDGET_MS, OBS, REPO, base_obs, new_bot, reset, respond, v9_off
 from replay import replay
 
 GOLDEN = f"{REPO}/tests/golden/v6_replay.csv"
@@ -215,6 +215,7 @@ def test_far_threats_are_not_line_checked(bot, monkeypatch):
 
 def test_heal_off_replay_matches_v6_exactly(monkeypatch, tmp_path):
     monkeypatch.setattr(features, "HEAL", False)
+    v9_off(monkeypatch)
     out = tmp_path / "off.csv"
     replay(str(out), timing=False)
     with open(GOLDEN, "rb") as f:

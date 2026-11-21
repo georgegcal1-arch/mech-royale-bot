@@ -8,7 +8,7 @@ import math
 from hypothesis import assume, given
 
 import bot as B
-from conftest import HELLO, base_obs, new_bot, reset, respond, yaw_diff
+from conftest import HELLO, base_obs, new_bot, reset, respond, v9_off, yaw_diff
 from strategies import game_observations
 
 PROP_BOT = new_bot()
@@ -135,7 +135,8 @@ def _strafe_run(bot, obs, steps):
     return out
 
 
-def test_strafe_is_perpendicular_and_full_speed(bot):
+def test_strafe_is_perpendicular_and_full_speed(bot, monkeypatch):
+    v9_off(monkeypatch)  # v5's strafe: DUEL circles instead, LEARN_DODGE retimes it
     obs = _sky(base_obs(100))
     obs["mechs"] = [_mech(obs, 3, 80, 0)]
     action, _ = respond(bot, obs)
@@ -144,7 +145,8 @@ def test_strafe_is_perpendicular_and_full_speed(bot):
     assert abs(mx) < 1e-9 and abs(abs(my) - 1) < 1e-9
 
 
-def test_strafe_reverses_every_1_to_2_s_and_is_seeded(bot):
+def test_strafe_reverses_every_1_to_2_s_and_is_seeded(bot, monkeypatch):
+    v9_off(monkeypatch)  # v5's strafe: DUEL circles instead, LEARN_DODGE retimes it
     obs = _sky(base_obs(100))
     obs["mechs"] = [_mech(obs, 3, 80, 0)]
     run = _strafe_run(bot, obs, 120)  # 12 s
@@ -157,7 +159,8 @@ def test_strafe_reverses_every_1_to_2_s_and_is_seeded(bot):
     assert [a["move"] for a in again] == [a["move"] for a in run], "same seed, same pattern"
 
 
-def test_strafe_reverses_before_the_zone_edge(bot):
+def test_strafe_reverses_before_the_zone_edge(bot, monkeypatch):
+    v9_off(monkeypatch)  # v5's strafe: DUEL circles instead, LEARN_DODGE retimes it
     obs = _sky(base_obs(100))
     z = obs["zone"]
     x, y, _ = obs["self"]["pos"]
