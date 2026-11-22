@@ -67,7 +67,7 @@ LASER_GUARD = True  # kept: exp HI 3.52 (laser discipline, with NO_CHIP; QUEUE.m
 NO_CHIP = True  # kept: exp HI 3.52 (QUEUE.md)
 AMBUSH = False  # exp J (next, on top of whatever wins)
 NPC_AWARE = True  # kept: exp N 3.52 (no effect yet; on by the user's call, QUEUE.md)
-STUCK_ESCAPE = True  # exp S under test, on top of N (QUEUE.md); the safety net for routing
+STUCK_ESCAPE = True  # kept: exp S 3.56 (QUEUE.md); the safety net for routing
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE")
 
