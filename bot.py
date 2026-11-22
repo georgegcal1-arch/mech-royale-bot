@@ -158,7 +158,7 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.approach = None  # v9 NO_CHIP: (re-plan time, target id, goal)
         self.ambush, self.ambush_cool = None, 0.0  # v9 AMBUSH
         self.stuck_hist, self.escape, self.last_stuck = new_history(), None, None  # v9 STUCK_ESCAPE
-        self.nav, self.navgrid = None, None  # v9 NAV_ROUTE: the ground grid for this map (nav.py)
+        self.nav, self.navgrid, self.nav_tick = None, None, None  # v9 NAV_ROUTE: the ground grid (nav.py)
         if self.world is not None:
             try:
                 self.navgrid = NavGrid.load(hello["map"]["dir"])
@@ -287,7 +287,8 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         if goal is not None and legs is None:
             mf.draw.point([goal[0], goal[1], z], "#40c0ff", 6)
         tag = f"{why} {target['id']}" if target is not None else why
-        mf.draw.label(f"{mode} · hp {me['hp']:.0f} · {len(enemies)} in sight · {tag}")
+        routed = " · route" if self.nav_tick == obs["tick"] else ""  # v9 NAV_ROUTE: for tools/analyze.py
+        mf.draw.label(f"{mode} · hp {me['hp']:.0f} · {len(enemies)} in sight · {tag}{routed}")
         return act
 
 

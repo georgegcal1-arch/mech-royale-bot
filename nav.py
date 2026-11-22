@@ -238,4 +238,5 @@ class NavMixin:
                 break
         if far >= len(path) - 1:
             return goal
+        self.nav_tick = obs["tick"]  # a route waypoint steered this decision (the label shows it)
         return g.center(path[far])

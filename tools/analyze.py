@@ -92,7 +92,7 @@ def play_report(msgs, p):
         p("  modes: " + ", ".join(f"{k} {v}" for k, v in modes.most_common(12)))
         tags = {"npc self-defense": " npc ", "npc farm": " farm ", "npc avoid": "/npc ", "laser short": " short ",
                 "crate": " crate ", "unstick jet": "unstick/jet ", "unstick over": "unstick/over ",
-                "unstick slide": "unstick/slide "}
+                "unstick slide": "unstick/slide ", "route": " route "}
         p("  triggers: " + ", ".join(f"{k} {sum(t in lab + ' ' for lab in labels)}" for k, t in tags.items()))
 
     movement_report(obs, msgs, p)
