@@ -40,7 +40,7 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | B3 | aggression hold (`AGGRO_HOLD`) | - | - | - | - | skipped (the opposite of the winner B2) |
 | B4 | heal between fights (`HEAL_QUIET`) | L + B5 + B2 + B4 | 54f49ae | **4.54** | +0.04 vs 4.50 | **kept on** (user's call; under +0.15) |
 | B2b | even closer (`AGGRO_RUSH`: close on the nearest hunter once seen, boost, under 35 m, lightning pickups first) | L + B5 + B2 + B4 + B2b | 1ea7712 | **4.69** | +0.15 vs 4.54 | **winner: kept on** |
-| LC | laser counter (`LASER_COUNTER`, merged from `v9-laser`: hide on the laser's clock, close in its cooldown window) | B2b + LC | (exp LC commit, see git log) | | needs 4.84 | |
+| LC | laser counter (`LASER_COUNTER`, merged from `v9-laser`: hide on the laser's clock, close in its cooldown window) | B2b + LC | d7b00e8 | | needs 4.51 (builders-4: B2b re-scored 4.36) | scored under builders-4 (96 matches) |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
