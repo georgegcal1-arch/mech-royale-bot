@@ -12,19 +12,20 @@ lightning interrupts it (short, 2 s). Strafing can't beat a 4 rad/s torso. In ou
   Anchor: the best cell of the precomputed exposure map (tools/exposure.py -> nav/exposure.nav.gz) within
     ANCHOR_SEARCH_M that is hidden from the foe (both neighbouring direction and range bins, so the lookup is
     conservative), walkable, and confirmed with live line checks from the foe's real muzzle; re-chosen every
-    ANCHOR_REPLAN_S or when the foe moves. Scored by travel, and, with lightning held, by closeness to the foe.
+    ANCHOR_REPLAN_S or when the foe moves. Scored by travel and closeness to the foe: the next cover on the way in.
+  Priority is CLOSING (bracket B2, close aggression, won 4.50): cover is only for the moments its laser is ready.
   Legs (in zone hurry nothing changes):
-    foe charging          -> hide: boost to the anchor (guard.py's cover is not needed then)
-    in the window         -> lightning held: close (boost toward the foe); else: the normal fight (peek, shoot)
-    ready, not charging   -> boost to the anchor if it is further than ANCHOR_M (once it charges there is only
-                             ~0.7 s, about 10 m), else hold it (lc/hold): no peeking while it could fire;
-                             lightning held: the anchor is the next cover closer to the foe
+    foe within DONE_M (LIGHTNING_M with lightning) -> the normal close fight (B2's; lightning shorts it)
+    in the window         -> close: boost straight toward the foe (with or without lightning)
+    foe charging          -> hide: boost to an anchor within ANCHOR_SEARCH_M (reachable in the ~0.7 s warning);
+                             none in reach: keep closing (B2)
+    ready, not charging   -> nothing: B2's direct approach (replays: detours to cover on the way in ended 86 m
+                             from the shooter at its beam, against 77 m without them)
   The foe stays minded for STICKY_S after it loses its line to us (we are behind the cover), and the anchor is
   kept while live checks still find it hidden (re-chosen when it isn't, or the foe moved ANCHOR_FOE_MOVE_M).
-  In the replays cover was 4-59 m away (median ~30 m) when the beams landed, so ANCHOR_SEARCH_M is 45 m and the
-  bot must already be near cover when the charge starts: reacting to the charge alone hid 0 of 9.
-    foe within LIGHTNING_M with lightning held -> the normal fight (lightning shorts it; guard.py too)
-  The torso is untouched: it fires whenever it has a clear line (so it shoots while peeking, not from cover).
+  Replay history (tests/test_laser_counter.py): hiding first (45 m search, hold cover while it is ready) hid 3/9
+  of the beams vs 1/9 but stood back; that is the opposite of the winner, so it was cut back to this.
+  The torso is untouched: it fires whenever it has a clear line (so it shoots while closing, not from cover).
 """
 import gzip
 import hashlib
@@ -38,13 +39,15 @@ from perception import LATENCY_S
 EXPOSURE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nav", "exposure.nav.gz")
 LASER_RANGE_M = 280.0
 LIGHTNING_M = 43.0
+DONE_M = 40.0            # without lightning: B2's close range, from here the normal close fight
+FOES_MAX = 2             # line-check at most this many nearest lasers per decision (time bound)
 COOLDOWN_S, MIN_CHARGE_S, REACT_S = 1.65, 0.15, 0.3
 WINDOW_S = COOLDOWN_S + MIN_CHARGE_S - REACT_S   # 1.5 s after a beam: it can't fire
-ANCHOR_SEARCH_M = 45.0   # the replays: cover was 4-59 m away (median ~30 m) when the beams landed
+ANCHOR_SEARCH_M = 12.0   # cover reachable inside the charge's ~0.7 s warning (boost from a standstill ~10 m)
 ANCHOR_M = 8.0           # stay this close to the anchor while the foe could charge (0.7 s at boost ~ 10 m)
 ANCHOR_REPLAN_S = 0.5
 ANCHOR_FOE_MOVE_M = 10.0
-CLOSE_W = 0.5            # with lightning: metres of travel one metre closer to the foe is worth
+CLOSE_W = 0.5            # metres of travel one metre closer to the foe is worth (cover on the way in)
 MAX_CONFIRM = 4          # live line checks (2 lines each) per anchor plan (8 pushed the all-on worst case past 10 ms)
 LC_STOP_M = 1.5          # this close to the anchor: stand
 LC_SLOW_M = 4.0          # ...this close: no boost (no overshoot past the cover)
@@ -130,12 +133,14 @@ class LaserCounterMixin:
         me = obs["self"]
         x, y, z = me["pos"]
         us, top = (x, y, z + CENTER_M), (x, y, z + TOP_M)
+        checked = 0
         for m in enemies:  # nearest first
             if "laser" not in (m.get("weapons") or ()):
                 continue
             mx, my, mz = m["pos"]
-            if math.hypot(mx - x, my - y) > LASER_RANGE_M:
+            if math.hypot(mx - x, my - y) > LASER_RANGE_M or checked >= FOES_MAX:
                 break
+            checked += 1
             eye = (mx, my, mz + MUZZLE_M)
             if self.clear(eye, us) or self.clear(eye, top):  # it can hit what it can see of us
                 return m
@@ -198,30 +203,23 @@ class LaserCounterMixin:
         d = math.hypot(fx - x, fy - y)
         held = {w_["kind"] for w_ in me["weapons"] if w_}
         lightning = "lightning" in held
-        if lightning and d <= LIGHTNING_M:
-            return None  # lightning shorts it: the normal fight
+        if d <= (LIGHTNING_M if lightning else DONE_M):
+            return None  # close enough: the normal close fight (B2's; lightning shorts it)
         in_window = t - self.laser_fired.get(foe["id"], -1e9) < WINDOW_S and not foe.get("charging")
         if in_window:
-            if lightning:
-                return (fx, fy), True, "lc/close"
-            return None  # peek: the normal fight shoots while it can't
-        keep = (lc is not None and lc["foe"] == foe["id"] and lc["closing"] == lightning and lc["anchor"] is not None
+            return (fx, fy), True, "lc/close"  # it can't fire: close the gap now
+        if not foe.get("charging"):
+            return None  # ready: B2's direct approach (detours to cover cost more distance than they save)
+        keep = (lc is not None and lc["foe"] == foe["id"] and lc["anchor"] is not None
                 and t < lc["until"] + ANCHOR_KEEP_S and self._still_hidden(foe, lc["anchor"]))
-        if not keep and (lc is None or lc["foe"] != foe["id"] or t >= lc["until"] or lc["closing"] != lightning
-                         or lc["anchor"] is None or math.hypot(lc["fpos"][0] - fx, lc["fpos"][1] - fy) > ANCHOR_FOE_MOVE_M
+        if not keep and (lc is None or lc["foe"] != foe["id"] or t >= lc["until"] or lc["anchor"] is None
+                         or math.hypot(lc["fpos"][0] - fx, lc["fpos"][1] - fy) > ANCHOR_FOE_MOVE_M
                          or not self._still_hidden(foe, lc["anchor"])):
-            anchor = self._anchor(obs, foe, lightning)
-            lc = self.lc = {"foe": foe["id"], "until": t + ANCHOR_REPLAN_S, "anchor": anchor, "closing": lightning,
+            anchor = self._anchor(obs, foe, True)  # the next cover on the way in
+            lc = self.lc = {"foe": foe["id"], "until": t + ANCHOR_REPLAN_S, "anchor": anchor, "closing": True,
                             "fpos": (fx, fy), "seen": seen_t}
         lc["seen"] = seen_t
         anchor = lc["anchor"]
         if anchor is None:
-            return None  # nowhere to hide nearby: guard.py's fallback and the normal fight
-        da = math.hypot(anchor[0] - x, anchor[1] - y)
-        if foe.get("charging"):
-            return anchor, True, "lc/hide"
-        if lightning:
-            return anchor, True, "lc/cover"  # the next cover closer to it
-        if da > ANCHOR_M:
-            return anchor, True, "lc/cover"  # get there before it charges: the charge gives only ~0.7 s
-        return anchor, False, "lc/hold"  # in cover while it could fire: peek only in its window
+            return None  # no cover within reach of the charge: keep closing (B2)
+        return anchor, True, "lc/hide"  # charging: duck behind the cover within reach; its beam opens the window

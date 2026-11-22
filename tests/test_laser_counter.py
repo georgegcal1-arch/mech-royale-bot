@@ -72,21 +72,27 @@ def _replay(case, on):
     eye = (sx, sy, sz + LC.MUZZLE_M)
     w = bot.world
     hidden = w.blocked(eye, (sim.x, sim.y, sim.z + LC.CENTER_M)) and w.blocked(eye, (sim.x, sim.y, sim.z + LC.TOP_M))
-    return hidden, modes, worst
+    return hidden, modes, worst, math.hypot(sx - sim.x, sy - sim.y)
 
 
-def test_replayed_laser_losses_hide_in_time():
+def test_replayed_laser_losses_close_in_without_more_exposure():
+    """Re-aimed at the winner (B2, close aggression): LASER_COUNTER closes in during the laser's cooldown window and
+    uses cover only while it is ready. So at the moment each recorded beam landed we should be closer to the
+    shooter than without it, and not less often hidden. (The shooters are as recorded: they don't react to us.)
+    The hiding-first design measured 3/9 hidden vs 1/9 off, but stood back; this one trades that for distance."""
     on = [_replay(c, True) for c in CASES]
     off = [_replay(c, False) for c in CASES]
-    rows = [f"{c['match']} t={c['hit_t']}: on {'HIDDEN' if a[0] else 'hit'} ({','.join(sorted(set(m for m in a[1] if m.startswith('lc'))))}), "
-            f"off {'HIDDEN' if b[0] else 'hit'}" for c, a, b in zip(CASES, on, off)]
+    rows = [f"{c['match']} t={c['hit_t']}: on {'HIDDEN' if a[0] else 'hit'} at {a[3]:.0f} m "
+            f"({','.join(sorted(set(m for m in a[1] if m.startswith('lc'))))}), off {'HIDDEN' if b[0] else 'hit'} at {b[3]:.0f} m"
+            for c, a, b in zip(CASES, on, off)]
     n_on, n_off = sum(a[0] for a in on), sum(b[0] for b in off)
-    print("\n" + "\n".join(rows) + f"\nhidden at the hit: {n_on}/{len(CASES)} with LASER_COUNTER, {n_off} without")
-    # Cover existed within ~40 m (live line checks) at only 5 of the 9 spots; at the four ZEFXJ hits there was
-    # none in reach (none within 80 m, or 41-59 m from a laser 41-53 m away): no line-of-sight answer there.
-    # Measured: 3 of 9 hidden with LASER_COUNTER (3 of the 5 with cover), 1 without.
-    assert n_on > n_off, "\n".join(rows)
-    assert n_on >= 3, "\n".join(rows)
+    d_on, d_off = sum(a[3] for a in on) / len(on), sum(b[3] for b in off) / len(off)
+    print("\n" + "\n".join(rows) + f"\nhidden at the hit: {n_on}/{len(CASES)} on, {n_off} off; "
+          f"mean distance to the shooter at the hit: {d_on:.0f} m on, {d_off:.0f} m off")
+    # Measured (closing design): 67 m on vs 77 m off on average, closer in every case with a window; hidden 0/9 on
+    # vs 1/9 off (VNETQ t=56.4: without LASER_COUNTER we happened to stand behind cover; with it we were closing).
+    assert d_on < d_off - 5.0, "\n".join(rows)
+    assert n_on >= n_off - 1, "\n".join(rows)
     assert max(a[2] for a in on) * 1000 < DECISION_BUDGET_MS
 
 
@@ -106,34 +112,60 @@ def test_window_after_its_beam():
     obs["beams"] = [{"by": 7, "kind": "laser", "path": [m["pos"], obs["self"]["pos"]], "age": 0.1}]
     bot.note_lasers(obs)
     goal, boost, mode = bot.laser_counter(obs, obs["mechs"], "walk")
-    assert mode == "lc/close" and boost and goal == (m["pos"][0], m["pos"][1]), "lightning: close in its window"
+    assert mode == "lc/close" and boost and goal == (m["pos"][0], m["pos"][1]), "close in its window"
     obs2, _ = _foe_scene(bot, GUN, LASER)
     obs2["t"] = obs["t"] + 0.2
-    assert bot.laser_counter(obs2, obs2["mechs"], "walk") is None, "no lightning: the normal fight peeks and shoots"
-    obs2["t"] = obs["t"] + LC.WINDOW_S + 0.1  # the window is over
+    assert bot.laser_counter(obs2, obs2["mechs"], "walk")[2] == "lc/close", "without lightning too (B2 won)"
+    obs2["t"] = obs["t"] + LC.WINDOW_S + 0.1  # the window is over, not charging: B2's own approach
+    assert bot.laser_counter(obs2, obs2["mechs"], "walk") is None
+
+
+def _cover_pair(bot):
+    """A real-map spot B with cover 8 m away: cell A is hidden from a shooter 100 m off in some direction, its
+    neighbour B two cells over is in the open from that shooter (live checks). (B, shooter position)."""
+    ex, w = bot.exposure, bot.world
+    r100 = ex.ranges.index(100.0)
+    for j in range(40, ex.ny - 40, 3):
+        for i in range(40, ex.nx - 40, 3):
+            v = ex.value((i, j))
+            if not v:
+                continue
+            for k in range(ex.dirs):
+                if not (v >> (k * len(ex.ranges) + r100)) & 1:
+                    continue
+                ax, ay = ex.center((i, j))
+                a = 2 * math.pi * k / ex.dirs
+                sx, sy = ax + 100 * math.cos(a), ay + 100 * math.sin(a)
+                for di, dj in ((2, 0), (-2, 0), (0, 2), (0, -2)):
+                    b = (i + di, j + dj)
+                    if not ex.value(b) or ex.hidden(b, sx, sy):
+                        continue
+                    bx, by = ex.center(b)
+                    gb, gs = w.ground(bx, by), w.ground(sx, sy)
+                    if not w.blocked((sx, sy, gs + LC.MUZZLE_M), (bx, by, gb + LC.CENTER_M)):
+                        return (bx, by, gb), (sx, sy, gs)
+    return None
+
+
+def test_hides_from_a_charging_laser_behind_cover_in_reach():
+    bot = new_bot()
+    pair = _cover_pair(bot)
+    assert pair is not None, "no spot with cover 8 m away on the map?"
+    (bx, by, bz), (sx, sy, sz) = pair
+    obs = _arm(base_obs(150), GUN, None)
+    obs["self"]["pos"] = [bx, by, bz]
+    m = _mech(obs, 7, sx - bx, sy - by, weapons=("gun", "laser"))
+    m["pos"][2] = sz
+    m["charging"] = True
+    obs["mechs"] = [m]
+    goal, boost, mode = bot.laser_counter(obs, obs["mechs"], "walk")
+    assert mode == "lc/hide" and boost
+    g = bot.world.ground(*goal)
+    assert bot.world.blocked((sx, sy, sz + LC.MUZZLE_M), (goal[0], goal[1], g + LC.CENTER_M)), "behind the cover"
+    assert math.hypot(goal[0] - bx, goal[1] - by) <= LC.ANCHOR_SEARCH_M, "reachable in the ~0.7 s warning"
+    m["charging"] = False
     bot.lc = None
-    out = bot.laser_counter(obs2, obs2["mechs"], "walk")
-    assert out is None or out[2] in ("lc/cover", "lc/hide", "lc/hold"), "the window is over: back to cover"
-
-
-def test_hides_from_a_charging_laser_to_a_confirmed_anchor():
-    found = 0
-    for c in CASES:  # the real spots of our lost duels
-        o = next(p for p in c["obs"] if any(m["id"] == c["shooter"] and m.get("charging") for m in p["mechs"]))
-        bot = new_bot()
-        enemies = sorted((m for m in o["mechs"] if m["kind"] == "mech"), key=lambda m: math.dist(m["pos"], o["self"]["pos"]))
-        out = bot.laser_counter(o, enemies, "walk")
-        if out is None:
-            continue
-        goal, boost, mode = out
-        assert mode == "lc/hide" and boost, mode
-        foe = bot.laser_foe(o, enemies)
-        fx, fy, fz = foe["pos"]
-        g = bot.world.ground(*goal)
-        assert bot.world.blocked((fx, fy, fz + LC.MUZZLE_M), (goal[0], goal[1], g + LC.CENTER_M))
-        assert math.hypot(goal[0] - o["self"]["pos"][0], goal[1] - o["self"]["pos"][1]) <= LC.ANCHOR_SEARCH_M
-        found += 1
-    assert found >= 3, f"an anchor at only {found} of {len(CASES)} real spots (cover in reach at about 5)"
+    assert bot.laser_counter(obs, obs["mechs"], "walk") is None, "ready but not charging: B2's approach"
 
 
 def test_lightning_up_close_is_the_normal_fight():
