@@ -254,3 +254,51 @@ def test_b2c_boosts_whenever_energy_above_25(bot, dist, energy, boost):
     with switches(*B2B, "AGGRO_CLOSER"):
         action, _ = respond(bot, obs)
     assert _mode(action) == "approach" and bool(action.get("boost")) is boost, (_label(action), action.get("boost"))
+
+
+# --- F1 THREAT_TARGET / F2 MULTI_GUARD --------------------------------------------------------------
+B2C = B2B + ("AGGRO_CLOSER", "LASER_COUNTER")
+
+
+def _threat_scene(bot, weak_hp):
+    obs = _flat(bot, _arm(base_obs(100), GUN, LASER))
+    obs["self"]["aim"] = [0.0, 0.0]  # facing east
+    weak = _mech(obs, 7, 30, 0, hp=weak_hp, aim=math.pi / 2)            # ahead, looking away
+    arc = _mech(obs, 8, -14, 3, weapons=("gun", "lightning"))            # behind us, lightning in reach
+    obs["mechs"] = [weak, arc]
+    bot.hits = [(obs["t"] - 0.5, 8, 160.0, math.pi)]
+    bot.target_id = 7
+    return obs
+
+
+def test_f1_shoots_the_lightning_behind_us_not_the_weak_one(bot):
+    obs = _threat_scene(bot, 380)  # under FINISH_FRAC: v5 targeting finishes it first
+    with switches(*B2C):
+        assert bot.choose_target(obs, obs["mechs"])[0]["id"] == 7
+    bot.target_id = 7
+    with switches(*B2C, "THREAT_TARGET"):
+        target, _, why = bot.choose_target(obs, obs["mechs"])
+    assert (target["id"], why) == (8, "threat")
+
+
+def test_f1_finishes_a_target_that_dies_within_a_second(bot):
+    obs = _threat_scene(bot, 150)
+    with switches(*B2C, "THREAT_TARGET"):
+        target, _, why = bot.choose_target(obs, obs["mechs"])
+    assert (target["id"], why) == (7, "finish")
+
+
+def test_f2_no_rush_into_a_crowd(bot):
+    obs = _flat(bot, _arm(base_obs(100), GUN, None))
+    obs["mechs"] = [_mech(obs, 7, 60, 0), _mech(obs, 8, 90, 30, aim=0.0), _mech(obs, 9, 100, -30, aim=0.0)]
+    with switches(*B2C):
+        assert _mode(respond(bot, obs)[0]) == "approach"
+    reset(bot)
+    _flat(bot, obs)
+    with switches(*B2C, "MULTI_GUARD"):
+        assert _mode(respond(bot, obs)[0]) != "approach"
+    reset(bot)
+    _flat(bot, obs)
+    obs["mechs"] = obs["mechs"][:2]  # only one other near it: rush as before
+    with switches(*B2C, "MULTI_GUARD"):
+        assert _mode(respond(bot, obs)[0]) == "approach"

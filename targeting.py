@@ -64,13 +64,16 @@ class TargetingMixin:
             clear = self.clear_mechs(obs, enemies)
             if clear and squad:
                 target, why = self.isolated_target(clear, enemies), "isolated"
+            elif clear and features.THREAT_TARGET:  # v9 F1 (threat.py): the most dangerous, a quick kill first
+                target, why = self.threat_target(obs, clear)
             elif clear:
                 hp, _, best = min(clear, key=lambda c: (c[0], c[1]))
                 cur = next((c for c in clear if c[2]["id"] == self.target_id), None)
                 if cur is not None and hp > cur[0] - STICKY_HP:
                     best = cur[2]
                 target, why = best, "weakest"
-            if hitting and not (squad and target is not None) and (target is None or (hitting[0] != target["id"] and _hp_frac(target) >= FINISH_FRAC)):
+            threat = features.THREAT_TARGET and target is not None and not squad  # F1 already weighs attackers
+            if hitting and not threat and not (squad and target is not None) and (target is None or (hitting[0] != target["id"] and _hp_frac(target) >= FINISH_FRAC)):
                 a = hitting[0]
                 if a in seen:
                     target, why = seen[a], "attacker"

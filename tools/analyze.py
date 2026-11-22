@@ -23,6 +23,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import damage_ledger as L  # noqa: E402
 import scorecard as SC  # noqa: E402
+import scorecard_deep as SD  # noqa: E402
 
 DEATH_WINDOW_S = 10.0
 EVENT_KIND_KEYS = ("type", "e", "k", "kind", "ev", "t")
@@ -292,6 +293,9 @@ def main(argv=None):
             if c is not None:
                 rows.append((os.path.basename(path).replace("-play.jsonl", ""), SC.setup_of(path), c))
         SC.table(rows, p)
+        p("")
+        SD.table([(n, s, SD.deep(load(path))) for (n, s, _), path in zip(rows, [x for x in a.recording
+                  if SC.scorecard(load(x)) is not None])], p)
         return
     a.recording = a.recording[0]
     msgs = load(a.recording)
@@ -304,6 +308,7 @@ def main(argv=None):
         if c is not None:
             p("")
             SC.report(c, p)
+            SD.report(SD.deep(msgs), p)
         if live_path is None and a.recording.endswith("-play.jsonl"):
             cand = a.recording[: -len("-play.jsonl")] + "-live.jsonl"
             live_path = cand if os.path.exists(cand) else None

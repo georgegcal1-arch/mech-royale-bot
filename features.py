@@ -67,6 +67,10 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
                prefer lightning pickups (take lightning > laser > mortar; loot_sweep counts lightning closer).
   AGGRO_CLOSER B2c, on top of B2b: closer still: approach to under 27 m, hold 20 m with lightning / 25 m without,
                and boost the approach at any range whenever energy > 25 (duel.py, nochip.py).
+  THREAT_TARGET F1: shoot the clear mech most dangerous to us now (hitting us, lightning in reach, charging,
+               behind us, aimed at us, close), not the weakest; one we kill in under ~1 s first (threat.py).
+  MULTI_GUARD  F2: no approach (B2/B2b/B2c rush) when 2+ other mechs are within 100 m of the one we would close
+               on: fight from where we are (strafe / cover) instead (movement.py, nochip.crowded).
   LASER_COUNTER  a visible enemy laser with a line to us: keep a cover anchor from the exposure map
                (nav/exposure.nav.gz, tools/exposure.py) within 8 m, boost to it when the laser charges, and in the
                1.5 s after its beam peek and shoot (or, with lightning, close in); with lightning the anchor is the
@@ -104,10 +108,13 @@ NO_MORTAR = True  # kept: bracket B5 4.06 (QUEUE.md)
 AGGRO_RUSH = True  # winner: bracket B2b 4.69 (QUEUE.md)
 LASER_COUNTER = True  # winner: step LC 4.69 under builders-4 (B2b 4.36) (QUEUE.md)
 AGGRO_CLOSER = True  # bracket B2c under test, on top of LC (QUEUE.md)
+THREAT_TARGET = False  # F1 (branch v9-f12): arena first
+MULTI_GUARD = False  # F2 (branch v9-f12): arena first
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
                "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",
-               "NO_MORTAR", "AGGRO_RUSH", "LASER_COUNTER", "AGGRO_CLOSER")
+               "NO_MORTAR", "AGGRO_RUSH", "LASER_COUNTER", "AGGRO_CLOSER",
+               "THREAT_TARGET", "MULTI_GUARD")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...

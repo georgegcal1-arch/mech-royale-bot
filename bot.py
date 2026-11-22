@@ -112,6 +112,7 @@ from npc import NPC_AVOID_MODES, NpcMixin
 from stuck import StuckMixin, new_history
 from nav import NavGrid, NavMixin
 from loot_sweep import LootSweepMixin
+from threat import ThreatMixin
 from laser_counter import LC_SLOW_M, LC_STOP_M, ExposureMap, LaserCounterMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
@@ -119,7 +120,7 @@ from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
           HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin,
           LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin, StuckMixin, NavMixin, LootSweepMixin,
-          LaserCounterMixin):
+          LaserCounterMixin, ThreatMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):

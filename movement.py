@@ -128,6 +128,8 @@ class MovementMixin:
                 ap = (self.approach_goal(obs, prey)
                       if (features.NO_CHIP or features.AGGRO_CLOSE or features.AGGRO_RUSH or features.AGGRO_CLOSER)
                       else None)  # v9 I / B2 / B2b / B2c
+                if ap is not None and features.MULTI_GUARD and self.crowded(enemies, prey):
+                    ap = None  # v9 F2: 2+ other mechs near it: fight from here (strafe / cover), don't rush in
                 if ap is not None:
                     goal, speed, boost, mode = ap, 1.0, self.rush_boost(obs, prey), "approach"
                 elif features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)

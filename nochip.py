@@ -23,6 +23,7 @@ RUSH_M = 32.0       # v9 B2b (features.AGGRO_RUSH): ...this close
 RUSH_BOOST_M = 60.0  # ...boosting while further than this, with at least RUSH_BOOST_ENERGY
 RUSH_BOOST_ENERGY = 35.0
 CLOSER_M = 27.0            # v9 B2c (features.AGGRO_CLOSER): approach this close (holds 20 / 25 m)...
+MULTI_GUARD_M, MULTI_GUARD_N = 100.0, 2  # v9 F2 (features.MULTI_GUARD): no rush into a crowd
 CLOSER_BOOST_ENERGY = 25.0  # ...boosting at any range while energy is above this
 NO_CHIP_FINISH = 0.25
 APPROACH_RADII = (12.0, 24.0)
@@ -41,6 +42,13 @@ class NoChipMixin:
     def chip_hold(m, d):
         """Should the gun hold fire at m, d metres away? (Always False with features.NO_CHIP off.)"""
         return features.NO_CHIP and m.get("kind") == "mech" and d > NO_CHIP_M and _hp_frac(m) >= NO_CHIP_FINISH
+
+    @staticmethod
+    def crowded(enemies, prey):
+        """v9 F2 (features.MULTI_GUARD): MULTI_GUARD_N or more other mechs within MULTI_GUARD_M of prey."""
+        px, py = prey["pos"][0], prey["pos"][1]
+        return sum(1 for m in enemies if m.get("kind", "mech") == "mech" and m["id"] != prey["id"]
+                   and math.hypot(m["pos"][0] - px, m["pos"][1] - py) <= MULTI_GUARD_M) >= MULTI_GUARD_N
 
     @staticmethod
     def rush_boost(obs, target):
