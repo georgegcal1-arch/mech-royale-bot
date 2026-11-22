@@ -113,9 +113,9 @@ AGGRO_RUSH = True  # winner: bracket B2b 4.69 (QUEUE.md)
 LASER_COUNTER = True  # winner: step LC 4.69 under builders-4 (B2b 4.36) (QUEUE.md)
 AGGRO_CLOSER = False  # bracket B2c 4.59: below the 4.69 bar (LC), off (QUEUE.md)
 THREAT_TARGET = True  # F1 4.78: kept on as best (QUEUE.md)
-MULTI_GUARD = True  # F2 under test, on top of F1 (QUEUE.md)
+MULTI_GUARD = False  # F2: unscored at final test (QUEUE.md)
 DROP_CAPTURE = False  # D off: final variant (QUEUE.md)
-EARLY_ARM = False  # branch v9-drops: arena first (QUEUE.md)
+EARLY_ARM = True  # final test: F1 + EARLY_ARM (QUEUE.md)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
                "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",
