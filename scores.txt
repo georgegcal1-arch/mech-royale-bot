@@ -14,3 +14,4 @@ expG = 3.23  # v9 exp G: DUEL + LIGHTNING + LOOKAHEAD (commit 5ea055b "exp G: du
 expHI = 3.52  # v9 exp HI: DUEL + LIGHTNING + LASER_GUARD + NO_CHIP (commit 663cf6f "exp HI: duel + lightning + laser discipline"); +0.06 vs 3.46 (under +0.15) -> kept as new best by the user's call, bar 3.52
 expN = 3.52  # v9 exp N: HI + NPC_AWARE (commit 535f7fc "exp N: HI + npc_aware"); +0.00 vs 3.52 -> no effect in practice yet; kept on by the user's call (harmless, should matter once navigation lets us roam); bar stays 3.52
 expS = 3.56  # v9 exp S: N + STUCK_ESCAPE (commit 4fead84 "exp S: N + stuck escape"); +0.04 vs 3.52 (under +0.15) -> kept as new best by the user's call, both NPC_AWARE and STUCK_ESCAPE on; bar 3.56
+expL = 3.92  # v9 exp L: R + LOOT_SWEEP (commit a6ce0db "exp L: R + loot sweep"); +0.36 vs 3.56 -> winner, kept on; R (dee82ab, NAV_ROUTE) was not scored on its own, so R + L count together; bar 3.92

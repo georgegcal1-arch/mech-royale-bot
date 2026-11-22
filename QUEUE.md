@@ -2,12 +2,11 @@
 
 Read this first after a /clear: it holds the rules, the order, where the code lives and what to do next.
 
-## Rules (since exp S scored 3.56)
+## Rules (since exp L scored 3.92)
 - **Stacked:** each experiment (or bundle of switches) is turned on *on top of the current best setup*, which keeps all winners on.
   Only the experiment under test changes between two submissions.
 - **Bar:** the current best score. A step counts as a winner only if it beats the bar by **0.15+**
-  (noise). Now: best = **3.56** (DUEL + LIGHTNING + LASER_GUARD + NO_CHIP + NPC_AWARE + STUCK_ESCAPE), so a step must
-  score **3.71 or more**. (S was +0.04 over 3.52, under the 0.15 rule; kept as the new best by the user's call.)
+  (noise). Now: best = **3.92** (L: R + LOOT_SWEEP), so a step must score **4.07 or more**.
   (HI was +0.06 over 3.46, under the 0.15 rule; kept as the new best by the user's call.)
 - **Winner:** it stays on, and its score becomes the new bar. **Loser:** it is turned off again before
   the next step, so the next step stacks on the unchanged best.
@@ -34,7 +33,11 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | N | npc_aware (`NPC_AWARE`) | HI + NPC_AWARE | 535f7fc | **3.52** | +0.00 vs 3.52 | no effect yet: **kept on** (user's call: harmless, should matter once navigation lets us roam) |
 | S | stuck escape (`STUCK_ESCAPE`, navigation step 1) | N + STUCK_ESCAPE | 4fead84 | **3.56** | +0.04 vs 3.52 | **kept as best** (user's call; under +0.15); arena MAZAE 1st / 5 kills, the escape never triggered |
 | R | routes (`NAV_ROUTE`, navigation step 2, ground layer) | S + NAV_ROUTE (+ H's cover checks 32 -> 20) | (exp R commit) | | needs 3.71 | arena PGBKZ 1st / MUWWU 8th: 0 / 1.5 s stuck, 1 / 3% crawling, no zone damage, 251 / 76 route decisions |
-| L | loot sweep (`LOOT_SWEEP`) | R + LOOT_SWEEP | (exp L commit) | | needs 3.71 | arena VNETQ 2nd / 4 kills, ZEFXJ 5th / 2: every in-circle cube picked up (8/8, 1/1); weapon-edge fix after ZEFXJ |
+| L | loot sweep (`LOOT_SWEEP`) | R + LOOT_SWEEP | a6ce0db | **3.92** | +0.36 vs 3.56 | **winner: kept on** (R's own score was not reported, so R + L count together) |
+| B1 | upgrades offense first (`UPGRADES_OFFENSE`) | L + B1 | (exp B1 commit) | | needs 4.07 | |
+| B2 | aggression close (`AGGRO_CLOSE`) | best + B2 | | | | |
+| B3 | aggression hold (`AGGRO_HOLD`) | best + B3 | | | | |
+| B4 | heal between fights (`HEAL_QUIET`) | best + B4 | | | | |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
@@ -67,5 +70,5 @@ already is the combination of the winners.
   Arena: baseline VGYDJ 14th (a drone did 838 dmg); with N MNUCG 1st, AGTRR 3rd, but no drone came near us, so
   N went untested there. **Status: merged for step N.**
 
-Status: **L ready to submit** (R + LOOT_SWEEP). R was submitted as dee82ab; its score was not reported before L.
-Next idea from the scorecard: dodging laser charges we have seen (the decisive losses in VNETQ / ZEFXJ / MUWWU).
+Status: **B1 ready to submit** (L + UPGRADES_OFFENSE). Brackets B1-B4 are submitted one at a time; winners (+0.15)
+stack. Research pending: `LASER_COUNTER` (exposure map + laser-cycle peeking), not built.
