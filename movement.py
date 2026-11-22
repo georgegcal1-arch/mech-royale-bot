@@ -4,6 +4,7 @@ import math
 
 import features
 from loot import FETCH_ARRIVE_M
+from nav import NAV_MODES
 from safety import EDGE_MARGIN_M
 
 STRAFE_MIN_S, STRAFE_MAX_S = 1.0, 2.0  # strafe direction lasts a random time in this range
@@ -129,6 +130,8 @@ class MovementMixin:
                     s, how = self.strafe_move(obs, target), "strafe"
                 if s:
                     legs, mode = s, how
+        if features.NAV_ROUTE and legs is None and goal is not None and mode in NAV_MODES:  # v9 (nav.py)
+            goal = self.nav_waypoint(obs, goal)
         nc = obs["zone"]["next_center"]
         if legs is not None:
             move, boost = legs, False

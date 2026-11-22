@@ -12,8 +12,10 @@ v9 (features.DUEL / LEAD_AIM / LEARN_DODGE / SQUAD_AVOID; QUEUE.md turns them on
   AMBUSH       J: one hunter closing: wait hidden and silent, spring with lightning inside 43 m (ambush.py).
   NPC_AWARE    N: shoot back at a drone hitting us (unless a mech is within 40 m), keep the fight's legs out of
                drones' aggro range, and farm drones for cubes when quiet (npc.py).
-  STUCK_ESCAPE pushing into a wall for 0.5 s without moving: jet over it if its top is within climb range,
+  STUCK_ESCAPE pushing into a wall for 0.3 s without moving: jet over it if its top is within climb range,
                else slide along it toward its nearer end (stuck.py); the last word on the legs.
+  NAV_ROUTE    walking goals (the zone spot, cubes, crates, the laser fetch, I's approach) follow A* routes on the
+               precomputed ground grid (nav.py, nav/ground.nav.gz from tools/navgrid.py).
   Legs: zone hurry > dodge > hide > squad > laser fetch > cube > (I) approach > duel > strafe > zone walk;
   then LOOKAHEAD may replace the result, then (J) the ambush, then (H) the laser guard's cover (none of them
   in zone hurry).
@@ -75,7 +77,7 @@ Layout (behavior identical to the single-file v5):
   loot.py       taking weapons in reach, the early laser fetch
   economy.py    v6: crates and cubes when quiet
   heal.py       v7: disengage at low HP so regen can start (state, threats, hide spot)
-  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py, npc.py, stuck.py
+  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py, npc.py, stuck.py, nav.py
                 v9 experiments (LIGHTNING: loot/combat/economy)
   features.py   on/off switches for the v5/v6/v7 features and the v9 experiments (defaults = v6)
 """
@@ -106,12 +108,13 @@ from nochip import NoChipMixin
 from ambush import AmbushMixin
 from npc import NPC_AVOID_MODES, NpcMixin
 from stuck import StuckMixin, new_history
+from nav import NavGrid, NavMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
           HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin,
-          LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin, StuckMixin):
+          LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin, StuckMixin, NavMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
@@ -155,6 +158,14 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.approach = None  # v9 NO_CHIP: (re-plan time, target id, goal)
         self.ambush, self.ambush_cool = None, 0.0  # v9 AMBUSH
         self.stuck_hist, self.escape, self.last_stuck = new_history(), None, None  # v9 STUCK_ESCAPE
+        self.nav, self.navgrid, self.nav_tick = None, None, None  # v9 NAV_ROUTE: the ground grid (nav.py)
+        if self.world is not None:
+            try:
+                self.navgrid = NavGrid.load(hello["map"]["dir"])
+            except Exception as e:
+                mf.log(f"nav grid not loaded: {e!r}")
+            if self.navgrid is None:
+                mf.log("nav grid missing or for another map: straight-line legs")
         self.npc_aggro_m = float(cfg.get("npc", {}).get("aggro_range", 45.0))  # v9 NPC_AWARE
         self.times = []  # seconds per decision
         self.fallbacks = 0
@@ -233,6 +244,7 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
             move = [math.cos(yaw), math.sin(yaw)]
         esc = self.stuck_step(obs, move, mode) if features.STUCK_ESCAPE else None  # v9 (stuck.py): past a wall
         if esc is not None:
+            self.nav_reset()  # v9 NAV_ROUTE: re-plan from wherever the escape takes us
             move, boost, esc_jump, mode = esc
             legs, goal = None, None
             yaw = math.atan2(move[1], move[0])
@@ -275,7 +287,8 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         if goal is not None and legs is None:
             mf.draw.point([goal[0], goal[1], z], "#40c0ff", 6)
         tag = f"{why} {target['id']}" if target is not None else why
-        mf.draw.label(f"{mode} · hp {me['hp']:.0f} · {len(enemies)} in sight · {tag}")
+        routed = " · route" if self.nav_tick == obs["tick"] else ""  # v9 NAV_ROUTE: for tools/analyze.py
+        mf.draw.label(f"{mode} · hp {me['hp']:.0f} · {len(enemies)} in sight · {tag}{routed}")
         return act
 
 

@@ -47,6 +47,9 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
   STUCK_ESCAPE the legs ask for 0.5+ of full speed for 0.5 s (not a fight's circling) but we moved < 1 m:
                jump + jet over the wall ahead if its top is within climb range (1.6 energy/m), else slide along
                it toward the side where it ends sooner; a repeat at the same spot tries the other way (stuck.py).
+  NAV_ROUTE    walking goals (zone spot, cubes, crates, laser fetch, I's approach) follow weighted-A* routes on
+               the precomputed 2 m ground grid (nav.py; nav/ground.nav.gz from tools/navgrid.py), planned within
+               2 ms per decision; no grid for this map = straight lines as before.
 """
 STRAFE = True
 DODGE = True
@@ -68,8 +71,9 @@ NO_CHIP = True  # kept: exp HI 3.52 (QUEUE.md)
 AMBUSH = False  # exp J (next, on top of whatever wins)
 NPC_AWARE = True  # kept: exp N 3.52 (no effect yet; on by the user's call, QUEUE.md)
 STUCK_ESCAPE = True  # kept: exp S 3.56 (QUEUE.md); the safety net for routing
+NAV_ROUTE = False  # navigation step 2 (arena-tested first)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
-               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE")
+               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...
