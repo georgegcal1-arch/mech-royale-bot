@@ -10,6 +10,8 @@ v9 (features.DUEL / LEAD_AIM / LEARN_DODGE / SQUAD_AVOID; QUEUE.md turns them on
   LASER_GUARD  H: a laser charging at us: short it with lightning up close, else boost out of its line (guard.py).
   NO_CHIP      I: no gun shots beyond 100 m at a healthy mech; close in via cover instead (nochip.py).
   AMBUSH       J: one hunter closing: wait hidden and silent, spring with lightning inside 43 m (ambush.py).
+  NPC_AWARE    N: shoot back at a drone hitting us (unless a mech is within 40 m), keep the fight's legs out of
+               drones' aggro range, and farm drones for cubes when quiet (npc.py).
   Legs: zone hurry > dodge > hide > squad > laser fetch > cube > (I) approach > duel > strafe > zone walk;
   then LOOKAHEAD may replace the result, then (J) the ambush, then (H) the laser guard's cover (none of them
   in zone hurry).
@@ -71,7 +73,7 @@ Layout (behavior identical to the single-file v5):
   loot.py       taking weapons in reach, the early laser fetch
   economy.py    v6: crates and cubes when quiet
   heal.py       v7: disengage at low HP so regen can start (state, threats, hide spot)
-  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py
+  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py, npc.py
                 v9 experiments (LIGHTNING: loot/combat/economy)
   features.py   on/off switches for the v5/v6/v7 features and the v9 experiments (defaults = v6)
 """
@@ -100,12 +102,13 @@ from squad import SquadMixin
 from guard import LaserGuardMixin
 from nochip import NoChipMixin
 from ambush import AmbushMixin
+from npc import NPC_AVOID_MODES, NpcMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
           HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin,
-          LaserGuardMixin, NoChipMixin, AmbushMixin):
+          LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
@@ -148,6 +151,7 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.guard = None  # v9 LASER_GUARD: (re-plan time, chargers key, cover goal)
         self.approach = None  # v9 NO_CHIP: (re-plan time, target id, goal)
         self.ambush, self.ambush_cool = None, 0.0  # v9 AMBUSH
+        self.npc_aggro_m = float(cfg.get("npc", {}).get("aggro_range", 45.0))  # v9 NPC_AWARE
         self.times = []  # seconds per decision
         self.fallbacks = 0
         gc.freeze()  # keep start-up objects out of the collector so collections stay short
@@ -169,6 +173,10 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         if features.SQUAD_AVOID:
             self.engaging = self.engagers(obs, enemies)
         target, face, why = self.choose_target(obs, enemies)
+        if features.NPC_AWARE:  # v9 N (npc.py): shoot back at a drone that is hitting us
+            npc = self.npc_defense(obs, enemies)
+            if npc is not None:
+                target, face, why = npc, None, "npc"
         guard = self.laser_guard(obs, enemies) if features.LASER_GUARD else None  # v9 H (guard.py)
         if guard is not None and guard[0] == "short":
             target, face, why = guard[1], None, "short"
@@ -189,7 +197,16 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
 
         quiet = self.quiet(obs, enemies, target, face)  # always False with features.ECONOMY off
 
-        move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, target, self.cube_goal(obs) if quiet else None)
+        farm = self.npc_farm(obs) if features.NPC_AWARE and quiet else None  # v9 N: drones for cubes
+        cube = (farm[1] if farm is not None else self.cube_goal(obs)) if quiet else None
+        move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, target, cube)
+        if (features.NPC_AWARE and target is not None and target.get("kind") == "mech"
+                and mode in NPC_AVOID_MODES):  # v9 N: fighting a mech, stay out of drones' aggro range
+            turned = self.npc_avoid(obs, move, self.npc_aggro_m)
+            if turned is not move:
+                move, mode = turned, mode + "/npc"
+                legs = turned if legs is not None else None
+                yaw = math.atan2(turned[1], turned[0])
         covering = guard is not None and guard[0] == "cover" and guard[1] is not None  # v9 H takes the legs
         if features.LOOKAHEAD and mode != "zone!" and not covering:  # v9 (lookahead.py): least expected damage under threat
             look = self.lookahead(obs, enemies, move, boost)
@@ -228,8 +245,12 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
             act.update(aim=aim, fire=fire)
         elif face is not None:
             act["aim"] = [face, 0.0]
-        crate = self.crate_shot(obs) if quiet else None
-        if crate is not None:
+        crate = self.crate_shot(obs) if quiet and farm is None else None
+        if farm is not None:  # v9 N: the drone first (it would shoot us while we shoot a crate)
+            aim, fire = self.engage(obs, farm[0], False, mortar=False, lightning=True)
+            act.update(aim=aim, fire=fire)
+            why = f"farm {farm[0]['id']}"
+        elif crate is not None:
             c, aim, fire = crate
             act.update(aim=aim, fire=fire)
             why = f"crate {c['id']}"
