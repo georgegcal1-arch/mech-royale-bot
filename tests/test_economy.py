@@ -184,7 +184,8 @@ def _cube(pos, cid=5012):
     return {"id": cid, "pos": list(pos)}
 
 
-def test_walks_to_a_cube_inside_the_next_circle():
+def test_walks_to_a_cube_inside_the_next_circle(monkeypatch):
+    monkeypatch.setattr(features, "LOOT_SWEEP", False)  # v6's label; with v9 L the same walk is labelled "loot"
     bot = new_bot()
     o = _quiet_obs(bot)
     pos = _place(bot, o, 40.0)
