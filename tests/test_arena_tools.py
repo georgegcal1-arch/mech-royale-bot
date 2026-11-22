@@ -130,15 +130,24 @@ def test_record_saves_every_line_and_reconnects(tmp_path):
 
 
 def test_analyze_live_events(capsys):
-    msgs = [{"type": "header", "players": [{"id": 3, "name": "us"}, {"id": 5, "name": "Expert 1"}]},
-            {"t": 10.0, "ev": [{"type": "hit", "src": 5, "dst": 3, "w": "laser", "amt": 315, "rear": False}]},
-            {"t": 70.0, "ev": [{"type": "hit", "src": 6, "dst": 3, "w": "gun", "amt": 45, "rear": True},
-                               {"type": "hit", "src": 3, "dst": 6, "w": "gun", "amt": 45}]},
-            {"t": 75.0, "ev": [{"type": "death", "id": 6, "place": 16, "by": 3}]},
-            {"t": 90.0, "ev": [{"type": "death", "id": 3, "place": 15, "by": 5}]}]
+    """The real mechreplay/1 shape (from match VGYDJ): ticks at header.tick_hz, events keyed by `e`."""
+    msgs = [{"type": "channel", "phase": "waiting"},
+            {"type": "header", "format": "mechreplay/1", "tick_hz": 20,
+             "mechs": [{"id": 3, "name": "us"}, {"id": 5, "name": "expert"}, {"id": 6, "name": "red"}]},
+            {"t": 200, "m": [], "ev": [{"t": 200, "e": "hit", "src": 5, "dst": 3, "w": "laser", "amt": 315}]},
+            {"t": 1400, "m": [], "ev": [{"t": 1400, "e": "hit", "src": 6, "dst": 3, "w": "gun", "amt": 45, "rear": True},
+                                        {"t": 1400, "e": "hit", "src": 3, "dst": 6, "w": "gun", "amt": 45},
+                                        {"t": 1401, "e": "hit", "src": 110, "dst": 3, "w": "npc", "amt": 25}]},
+            {"t": 1500, "m": [], "ev": [{"t": 1500, "e": "death", "id": 6, "place": 16, "by": 3},
+                                        {"t": 1500, "e": "death", "id": 110, "by": 5}]},
+            {"t": 1800, "m": [], "ev": [{"t": 1800, "e": "death", "id": 3, "place": 15, "by": 5}]},
+            {"t": 1900, "m": [], "ev": [{"t": 1900, "e": "end", "places": [0, 0, 0, 15, 1, 16]}]}]
     analyze.live_report(msgs, 3, print)
     out = capsys.readouterr().out
-    assert "16: 6, by 3 us" in out and "15: 3 us, by 5 Expert 1" in out and "<- us" in out
+    assert "16: 6 red, by 3 us, t=75.0" in out and "15: 3 us, by 5 expert, t=90.0" in out and "<- us" in out
     kills = next(line for line in out.splitlines() if line.startswith("kills: "))
-    assert sorted(kills[len("kills: "):].split(", ")) == ["3 us 1", "5 Expert 1 1"]
-    assert "hits on us: 2, 360 dmg, rear 1" in out and "mechs hitting us per minute: 0:1, 1:1" in out
+    assert sorted(kills[len("kills: "):].split(", ")) == ["3 us 1", "5 expert 1"], "drone deaths are not kills of mechs"
+    assert "drones killed: 110 by 5 expert at 75.0" in out
+    assert "hits on us: 3, 385 dmg, rear 1" in out
+    assert "min 0: 1 (1 mechs), min 1: 2 (1 mechs)" in out
+    assert "final places:" in out and "5 expert=1" in out

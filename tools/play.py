@@ -43,7 +43,8 @@ def pct(xs, q):
 class Bridge:
     def __init__(self, code, name, map_dir, bot_cmd, out_dir, stamp=None):
         self.code, self.name, self.map_dir, self.bot_cmd = code, name, map_dir, bot_cmd
-        self.rec = open(arena.recording_path(code, "play", stamp, out_dir), "w", encoding="utf-8")
+        # line-buffered: the recording can be read while the match runs
+        self.rec = open(arena.recording_path(code, "play", stamp, out_dir), "w", encoding="utf-8", buffering=1)
         self.log_path = arena.recording_path(code, "bot.log", stamp, out_dir)
         self.proc = None
         self.ws = None

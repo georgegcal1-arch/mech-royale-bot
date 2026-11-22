@@ -152,18 +152,19 @@ def _names(header):
 
 
 def live_events(msgs):
-    """(header, [(t, kind, fields)]) from a spectator recording."""
+    """(header, [(t seconds, kind, fields)]) from a spectator recording (mechreplay/1: frame and event `t`
+    are ticks at header.tick_hz; events are keyed by `e`)."""
     header = next((m for m in msgs if isinstance(m, dict) and m.get("type") == "header"), None)
+    hz = float((header or {}).get("tick_hz") or 20.0)
     evs, t = [], 0.0
     for m in msgs:
-        if not isinstance(m, dict):
+        if not isinstance(m, dict) or m.get("type") in ("header", "channel"):
             continue
-        for k in ("t", "time", "tick"):
-            if isinstance(m.get(k), (int, float)):
-                t = m[k] / 20.0 if k == "tick" else m[k]
-                break
+        if isinstance(m.get("t"), (int, float)):
+            t = m["t"] / hz
         for ev in m.get("ev") or []:
-            evs.append((t, _kind(ev), _fields(ev)))
+            et = ev.get("t") if isinstance(ev, dict) else None
+            evs.append((et / hz if isinstance(et, (int, float)) else t, _kind(ev), _fields(ev)))
     return header, evs
 
 
@@ -176,8 +177,16 @@ def live_report(msgs, me, p, name=None):
     p("")
     p(f"== whole match (spectator feed: {len(msgs)} lines, {len(evs)} events, "
       f"kinds {dict(collections.Counter(k for _, k, _ in evs))}) ==")
-    deaths = sorted(((f.get("place", 99), t, f.get("id"), f.get("by")) for t, k, f in evs if k == "death"),
-                    key=lambda d: (d[0], -d[1]))
+    is_mech = lambda i: isinstance(i, int) and 0 <= i < 100  # protocol.md: mechs 0-15, NPCs 100+
+    npc_deaths = [(t, f.get("id"), f.get("by")) for t, k, f in evs if k == "death" and not is_mech(f.get("id"))]
+    deaths = sorted(((f.get("place", 99), t, f.get("id"), f.get("by")) for t, k, f in evs
+                     if k == "death" and is_mech(f.get("id"))), key=lambda d: (d[0], -d[1]))
+    end = next((f for _, k, f in evs if k == "end" and isinstance(f.get("places"), list)), None)
+    if end:  # places indexed by mech id; survivors have no death event
+        dead = {d[2] for d in deaths}
+        ranked = sorted(enumerate(end["places"]), key=lambda x: x[1])
+        alive = [label(i) for i in range(len(end["places"])) if i not in dead]
+        p("final places: " + ", ".join(f"{label(i)}={pl}" for i, pl in ranked) + f"  (survivors: {alive})")
     kills = collections.Counter(by for _, _, _, by in deaths if by is not None)
     if deaths:
         p("death order (place: mech, killed by, at):")
@@ -185,6 +194,8 @@ def live_report(msgs, me, p, name=None):
             mark = "  <- us" if i == me else ""
             p(f"  {place:>2}: {label(i)}, by {label(by) if by is not None else 'zone/?'}, t={t:.1f}{mark}")
         p("kills: " + ", ".join(f"{label(i)} {n}" for i, n in kills.most_common()))
+    if npc_deaths:
+        p("drones killed: " + ", ".join(f"{i} by {label(by)} at {t:.1f}" for t, i, by in sorted(npc_deaths)))
     hits = [(t, f) for t, k, f in evs if k == "hit"]
     if me is not None and hits:
         on_us = [(t, f) for t, f in hits if f.get("dst") == me]
@@ -202,7 +213,8 @@ def live_report(msgs, me, p, name=None):
         for t, f in on_us:
             per_min[int(t // 60)].add(f.get("src"))
         if per_min:
-            p("mechs hitting us per minute: " + ", ".join(f"{m}:{len(s)}" for m, s in sorted(per_min.items())))
+            p("attackers hitting us per minute (mechs + drones): "
+              + ", ".join(f"min {m}: {len(s)} ({sum(map(is_mech, s))} mechs)" for m, s in sorted(per_min.items())))
     elif me is None:
         p("(our mech id unknown: pass --me ID or --name NAME for the hits on us)")
 
@@ -210,7 +222,8 @@ def live_report(msgs, me, p, name=None):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("recording", help="a -play.jsonl or -live.jsonl recording")
-    ap.add_argument("--live", default=None, help="the spectator recording (default: the -live.jsonl beside a -play one)")
+    ap.add_argument("--live", default=None, help="the spectator recording (default: the -live.jsonl beside a -play "
+                                                     "one; 'none' to skip it)")
     ap.add_argument("--me", type=int, default=None)
     ap.add_argument("--name", default=None)
     a = ap.parse_args(argv)
@@ -224,12 +237,12 @@ def main(argv=None):
         if live_path is None and a.recording.endswith("-play.jsonl"):
             cand = a.recording[: -len("-play.jsonl")] + "-live.jsonl"
             live_path = cand if os.path.exists(cand) else None
-        live = load(live_path) if live_path else None
+        live = load(live_path) if live_path and live_path.lower() != "none" else None
     else:
         live = msgs
     if live:
         live_report(live, me, p, a.name)
-    elif live_path is None:
+    elif live_path is None or live_path.lower() != "none":
         p("\n(no spectator recording: run tools/record.py alongside for the whole-match view)")
 
 

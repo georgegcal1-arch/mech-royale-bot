@@ -24,6 +24,7 @@ import arena  # noqa: E402
 IDLE_S = 30.0
 RECONNECTS = 8
 END_TYPES = {"end", "results", "over", "finished", "gameover"}
+LOBBY_TYPES = {"channel", "lobby", "header"}  # seen while the room waits for Start
 
 
 def say(*a):
@@ -67,7 +68,7 @@ class Recorder:
                 say(header_summary(msg))
             elif kind in END_TYPES:
                 self.ended = True
-            else:
+            elif kind not in LOBBY_TYPES:  # lobby chatter (channel) doesn't start the idle clock
                 self.frames += 1
             if self.lines % 2000 == 0:
                 self.f.flush()
