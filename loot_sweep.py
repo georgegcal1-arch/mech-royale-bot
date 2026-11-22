@@ -115,6 +115,8 @@ class LootSweepMixin:
                 d -= PILE_BONUS_M
             if kind in ("laser", "lightning") and not held & {"laser", "lightning"}:
                 d -= WANT_BONUS_M
+            elif features.AGGRO_RUSH and kind == "lightning":  # v9 B2b: lightning for the close fight
+                d -= WANT_BONUS_M
             if best is None or d < best[0]:
                 best = (d, (p[0], p[1]))
         if best is not None:

@@ -19,6 +19,7 @@ from perception import _wrap
 DUEL_AWAY = 0.55           # its torso aimed more than this (rad) off us: it is busy elsewhere, go for its back
 DUEL_RANGE_M = {"lightning": 30.0, "laser": 140.0, "gun": 60.0}  # preferred range by our best weapon
 DUEL_CLOSE_M = 35.0       # v9 B2: the range held without lightning
+RUSH_RANGE_M = {"lightning": 25.0, "other": 30.0}  # v9 B2b (features.AGGRO_RUSH)
 DUEL_BAND_M = 20.0         # the radial pull reaches full strength this far off the preferred range
 DUEL_RADIAL = 0.7          # ...where it is this strong against the circling (1.0)
 MORTAR_SLOW_MPS = 6.5      # the mortar only against a target slower than this (a charging laser walks 5.85)
@@ -35,6 +36,8 @@ class DuelMixin:
     @staticmethod
     def duel_range(me):
         held = {w["kind"] for w in me["weapons"] if w}
+        if features.AGGRO_RUSH:  # v9 B2b: closer still
+            return RUSH_RANGE_M["lightning"] if "lightning" in held else RUSH_RANGE_M["other"]
         if features.AGGRO_CLOSE:  # v9 B2: hold the fight close (lightning's, else the gun's short range)
             return DUEL_RANGE_M["lightning"] if "lightning" in held else DUEL_CLOSE_M
         for kind in ("lightning", "laser"):

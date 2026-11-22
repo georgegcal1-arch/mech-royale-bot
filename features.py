@@ -62,6 +62,9 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
                see and let it come, fighting within 43 m (ambush.py without its lightning requirement).
   HEAL_QUIET   B4: below 80% HP with no mech engaging us (no hit in 3 s, none aimed at us in reach, none within
                45 m), hold all fire so regen's 5 s timer runs; the legs carry on (loot, zone) (heal.py).
+  AGGRO_RUSH   B2b: closer still than B2: approach the target (the nearest hunter once seen) to under 32 m,
+               boosting while it is over 60 m away (with 35+ energy), hold 25 m with lightning / 30 m without, and
+               prefer lightning pickups (take lightning > laser > mortar; loot_sweep counts lightning closer).
   NO_MORTAR    B5: never carry a mortar (an enemy laser does +60% to a mortar carrier, protocol.md cook-off):
                never take one, drop one we hold, and loot_sweep never walks to one (loot.py, loot_sweep.py).
 """
@@ -92,10 +95,11 @@ AGGRO_CLOSE = True  # winner: bracket B2 4.50 (QUEUE.md)
 AGGRO_HOLD = False  # bracket B3: skipped (the opposite of the winner B2)
 HEAL_QUIET = True  # bracket B4 under test, on top of L + B5 + B2 (QUEUE.md)
 NO_MORTAR = True  # kept: bracket B5 4.06 (QUEUE.md)
+AGGRO_RUSH = False  # bracket B2b (after B4's score)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
                "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",
-               "NO_MORTAR")
+               "NO_MORTAR", "AGGRO_RUSH")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...

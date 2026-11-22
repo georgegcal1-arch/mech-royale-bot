@@ -121,9 +121,14 @@ class MovementMixin:
                 goal, speed, boost, mode = cube, 1.0, False, "cube"
             elif target is not None and math.dist(target["pos"], me["pos"]) <= self._reach(me):
                 s = None
-                ap = self.approach_goal(obs, target) if (features.NO_CHIP or features.AGGRO_CLOSE) else None  # v9 I / B2
+                prey = target
+                if features.AGGRO_RUSH:  # v9 B2b: close on the nearest mech hunting us (aimed at us or hitting us)
+                    hunters = self.engagers(obs, enemies)
+                    prey = hunters[0] if hunters else target
+                ap = (self.approach_goal(obs, prey)
+                      if (features.NO_CHIP or features.AGGRO_CLOSE or features.AGGRO_RUSH) else None)  # v9 I / B2 / B2b
                 if ap is not None:
-                    goal, speed, boost, mode = ap, 1.0, False, "approach"
+                    goal, speed, boost, mode = ap, 1.0, self.rush_boost(obs, prey), "approach"
                 elif features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)
                     s, how = self.duel_move(obs, target), "duel"
                 if ap is None and s is None and features.STRAFE:

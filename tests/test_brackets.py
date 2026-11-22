@@ -184,3 +184,47 @@ def test_b5_loot_sweep_never_walks_to_a_mortar(monkeypatch):
     assert LS.would_take("mortar", [dict(GUN), None]) is False
     monkeypatch.setattr(features, "NO_MORTAR", False)
     assert LS.would_take("mortar", [dict(GUN), None]) is True
+
+
+# --- B2b ------------------------------------------------------------------------------------------
+WINNERS = BEST + ("NO_MORTAR", "AGGRO_CLOSE")  # L + B5 + B2
+
+
+def test_b2b_closes_further_than_b2(bot):
+    obs = _flat(bot, _arm(base_obs(100), GUN, None))
+    obs["mechs"] = [_mech(obs, 7, 37, 0)]  # inside B2's 40 m, outside B2b's 32 m
+    with switches(*WINNERS):
+        assert _mode(respond(bot, obs)[0]) != "approach"
+    reset(bot)
+    _flat(bot, obs)
+    with switches(*WINNERS, "AGGRO_RUSH"):
+        assert _mode(respond(bot, obs)[0]) == "approach"
+        assert bot.duel_range(obs["self"]) == 30.0
+        assert bot.duel_range(_arm(base_obs(100), GUN, ARC)["self"]) == 25.0
+
+
+@pytest.mark.parametrize("dist, boost", [(120, True), (50, False)])
+def test_b2b_boosts_to_close_the_gap(bot, dist, boost):
+    obs = _flat(bot, _arm(base_obs(100), GUN, None))
+    obs["self"]["energy"] = 100.0
+    obs["mechs"] = [_mech(obs, 7, dist, 0)]
+    with switches(*WINNERS, "AGGRO_RUSH"):
+        action, _ = respond(bot, obs)
+    assert _mode(action) == "approach" and bool(action.get("boost")) is boost, (_label(action), action.get("boost"))
+
+
+def test_b2b_closes_on_the_nearest_hunter(bot):
+    obs = _flat(bot, _arm(base_obs(100), GUN, None))
+    weak = _mech(obs, 7, 0, 150, hp=300, aim=0.0)   # the weakest, north, looking away
+    hunter = _mech(obs, 8, 90, 0)                    # nearer, east, aimed at us
+    obs["mechs"] = [weak, hunter]
+    with switches(*WINNERS, "AGGRO_RUSH"):
+        action, _ = respond(bot, obs)
+    assert _mode(action) == "approach" and action["move"][0] > 0.7, (_label(action), action["move"])
+
+
+def test_b2b_prefers_lightning_pickups(bot):
+    obs = _arm(base_obs(100), GUN, None)
+    obs["pickups"] = [_pickup_here(obs, 8001, "laser"), _pickup_here(obs, 8002, "lightning")]
+    assert _take(bot, obs, *WINNERS).get("take") == 8001, "off: laser first"
+    assert _take(bot, obs, *WINNERS, "AGGRO_RUSH").get("take") == 8002, "rush: lightning first"

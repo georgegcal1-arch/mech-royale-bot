@@ -19,6 +19,9 @@ from safety import EDGE_MARGIN_M
 
 NO_CHIP_M = 100.0
 CLOSE_M = 40.0  # v9 B2 (features.AGGRO_CLOSE): approach any mech target until this close
+RUSH_M = 32.0       # v9 B2b (features.AGGRO_RUSH): ...this close
+RUSH_BOOST_M = 60.0  # ...boosting while further than this, with at least RUSH_BOOST_ENERGY
+RUSH_BOOST_ENERGY = 35.0
 NO_CHIP_FINISH = 0.25
 APPROACH_RADII = (12.0, 24.0)
 APPROACH_FAN_RAD = (-1.0, -0.5, 0.0, 0.5, 1.0)  # around the bearing to the target
@@ -37,14 +40,24 @@ class NoChipMixin:
         """Should the gun hold fire at m, d metres away? (Always False with features.NO_CHIP off.)"""
         return features.NO_CHIP and m.get("kind") == "mech" and d > NO_CHIP_M and _hp_frac(m) >= NO_CHIP_FINISH
 
+    @staticmethod
+    def rush_boost(obs, target):
+        """v9 B2b: boost the approach while the target is far and we have the energy for it."""
+        if not features.AGGRO_RUSH:
+            return False
+        me = obs["self"]
+        return (math.dist(me["pos"][:2], target["pos"][:2]) > RUSH_BOOST_M
+                and (me.get("energy") or 0.0) >= RUSH_BOOST_ENERGY and me.get("grounded", True))
+
     def approach_goal(self, obs, target):
         """(x, y) to walk to on the way to a far target, or None (in range, nearly dead, or the laser's range)."""
         me, t = obs["self"], obs["t"]
         x, y, z = me["pos"]
         tx, ty, tz = target["pos"]
         d0 = math.hypot(tx - x, ty - y)
-        close = features.AGGRO_CLOSE  # v9 B2: fight under 45 m, whatever we hold, the weak ones too
-        if target.get("kind") != "mech" or d0 <= (CLOSE_M if close else NO_CHIP_M) or (
+        close = features.AGGRO_CLOSE or features.AGGRO_RUSH  # v9 B2 / B2b: fight close, whatever we hold
+        stop = RUSH_M if features.AGGRO_RUSH else (CLOSE_M if close else NO_CHIP_M)
+        if target.get("kind") != "mech" or d0 <= stop or (
                 not close and _hp_frac(target) < NO_CHIP_FINISH):
             self.approach = None
             return None

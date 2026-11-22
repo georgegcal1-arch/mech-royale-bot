@@ -8,6 +8,7 @@ from safety import EDGE_MARGIN_M
 
 TAKE_KINDS = ("laser", "mortar")  # pickups worth taking, preferred first
 TAKE_KINDS_LIGHTNING = ("laser", "lightning", "mortar")  # v9 features.LIGHTNING
+TAKE_KINDS_RUSH = ("lightning", "laser", "mortar")       # v9 B2b (features.AGGRO_RUSH): close fights want lightning
 TAKE_Z_M = 4.0          # vertical pickup reach (fixed by the protocol)
 FETCH_MAX_M = 150.0     # walk to a visible laser pickup at most this far away
 FETCH_SAFE_M = 60.0     # ...only with no enemy mech this close
@@ -58,7 +59,8 @@ class LootMixin:
                 and math.dist(p["pos"][:2], (x, y)) <= self.reach and abs(p["pos"][2] - z) <= TAKE_Z_M]
         if not near:
             return
-        near.sort(key=lambda p: (TAKE_KINDS_LIGHTNING.index(p["kind"]), math.dist(p["pos"][:2], (x, y))))
+        order = TAKE_KINDS_RUSH if features.AGGRO_RUSH else TAKE_KINDS_LIGHTNING  # v9 B2b: lightning first
+        near.sort(key=lambda p: (order.index(p["kind"]), math.dist(p["pos"][:2], (x, y))))
         if None in weapons:
             act["take"] = near[0]["id"]
             return
