@@ -22,3 +22,4 @@ expB4 = 4.54  # bracket B4: L + B5 + B2 + HEAL_QUIET (commit 54f49ae); +0.04 vs 
 expB2b = 4.69  # bracket B2b: L + B5 + B2 + B4 + AGGRO_RUSH (commit 1ea7712); +0.15 vs 4.54 -> winner, kept on; bar 4.69
 # scorer switched to builders-4 (96 matches): scores above are not comparable with those below
 expB2b_b4 = 4.36  # B2b (commit 1ea7712) re-scored under builders-4; new bar 4.36, a step needs 4.51
+expLC = 4.69  # builders-4: B2b + LASER_COUNTER (commit d7b00e8); +0.33 vs 4.36 -> winner, kept on; bar 4.69, a step needs 4.84

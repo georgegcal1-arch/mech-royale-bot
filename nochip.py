@@ -22,6 +22,8 @@ CLOSE_M = 40.0  # v9 B2 (features.AGGRO_CLOSE): approach any mech target until t
 RUSH_M = 32.0       # v9 B2b (features.AGGRO_RUSH): ...this close
 RUSH_BOOST_M = 60.0  # ...boosting while further than this, with at least RUSH_BOOST_ENERGY
 RUSH_BOOST_ENERGY = 35.0
+CLOSER_M = 27.0            # v9 B2c (features.AGGRO_CLOSER): approach this close (holds 20 / 25 m)...
+CLOSER_BOOST_ENERGY = 25.0  # ...boosting at any range while energy is above this
 NO_CHIP_FINISH = 0.25
 APPROACH_RADII = (12.0, 24.0)
 APPROACH_FAN_RAD = (-1.0, -0.5, 0.0, 0.5, 1.0)  # around the bearing to the target
@@ -43,9 +45,11 @@ class NoChipMixin:
     @staticmethod
     def rush_boost(obs, target):
         """v9 B2b: boost the approach while the target is far and we have the energy for it."""
-        if not features.AGGRO_RUSH:
+        if not (features.AGGRO_RUSH or features.AGGRO_CLOSER):
             return False
         me = obs["self"]
+        if features.AGGRO_CLOSER:  # v9 B2c: boost whenever energy > 25, whatever the range
+            return (me.get("energy") or 0.0) > CLOSER_BOOST_ENERGY and me.get("grounded", True)
         return (math.dist(me["pos"][:2], target["pos"][:2]) > RUSH_BOOST_M
                 and (me.get("energy") or 0.0) >= RUSH_BOOST_ENERGY and me.get("grounded", True))
 
@@ -55,8 +59,9 @@ class NoChipMixin:
         x, y, z = me["pos"]
         tx, ty, tz = target["pos"]
         d0 = math.hypot(tx - x, ty - y)
-        close = features.AGGRO_CLOSE or features.AGGRO_RUSH  # v9 B2 / B2b: fight close, whatever we hold
-        stop = RUSH_M if features.AGGRO_RUSH else (CLOSE_M if close else NO_CHIP_M)
+        close = features.AGGRO_CLOSE or features.AGGRO_RUSH or features.AGGRO_CLOSER  # v9 B2/B2b/B2c: fight close
+        stop = (CLOSER_M if features.AGGRO_CLOSER else RUSH_M if features.AGGRO_RUSH
+                else CLOSE_M if close else NO_CHIP_M)
         if target.get("kind") != "mech" or d0 <= stop or (
                 not close and _hp_frac(target) < NO_CHIP_FINISH):
             self.approach = None
