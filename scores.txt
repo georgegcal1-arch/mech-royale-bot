@@ -25,3 +25,4 @@ expB2b_b4 = 4.36  # B2b (commit 1ea7712) re-scored under builders-4; new bar 4.3
 expLC = 4.69  # builders-4: B2b + LASER_COUNTER (commit d7b00e8); +0.33 vs 4.36 -> winner, kept on; bar 4.69, a step needs 4.84
 expB2c = 4.59  # builders-4: LC + AGGRO_CLOSER (commit a8ba22e); -0.10 vs 4.69 -> loser: AGGRO_CLOSER off; bar stays 4.69 (LC), a step needs 4.84
 expF1 = 4.78  # builders-4: LC + THREAT_TARGET (commit 728761a); +0.09 vs 4.69 (under +0.15) -> kept on as the new best by the user call; bar 4.78. Final submission: F1 + DROP_CAPTURE (commit 8c6ca73)
+expD = 4.64  # builders-4: F1 + DROP_CAPTURE (commit 8c6ca73); -0.14 vs 4.78 -> loser: DROP_CAPTURE off; bar stays 4.78 (F1). Submitted next: H0 = F1 with HEAL_QUIET off (commit 313d886)

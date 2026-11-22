@@ -45,7 +45,8 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | B2c | closer still (`AGGRO_CLOSER`: hold 20 m with lightning / 25 m without, approach to 27 m, boost the approach whenever energy > 25) | LC + B2c | a8ba22e | **4.59** | -0.10 vs 4.69 | loser: turned off |
 | F1 | threat targeting (`THREAT_TARGET`: shoot the clear mech most dangerous to us now, a < ~1 s kill first; threat.py) | LC + F1 (B2c off) | 728761a | **4.78** | +0.09 vs 4.69 | **kept on as best** (user's call; under +0.15); arena FWBBA 3rd, 1 kill |
 | F2 | multi guard (`MULTI_GUARD`: no rush approach when 2+ other mechs are within 100 m of the prey; fight from where we are) | best after F1 + F2 (B2c off) | | | needs bar + 0.15 | skipped (user's call) |
-| D | supply drops (`DROP_CAPTURE`, drops.py; `EARLY_ARM` built, off) | F1 + D | 8c6ca73 | | needs 4.93 | final submission (no arena run) |
+| D | supply drops (`DROP_CAPTURE`, drops.py; `EARLY_ARM` built, off) | F1 + D | 8c6ca73 | **4.64** | -0.14 vs 4.78 | loser: turned off |
+| H0 | no quiet heal (`HEAL_QUIET` (B4) off) | F1 - B4 (D off) | 313d886 | | needs 4.93 | submitted |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
