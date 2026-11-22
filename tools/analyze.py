@@ -22,6 +22,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import damage_ledger as L  # noqa: E402
+import scorecard as SC  # noqa: E402
 
 DEATH_WINDOW_S = 10.0
 EVENT_KIND_KEYS = ("type", "e", "k", "kind", "ev", "t")
@@ -276,19 +277,33 @@ def live_report(msgs, me, p, name=None):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("recording", help="a -play.jsonl or -live.jsonl recording")
+    ap.add_argument("recording", nargs="+", help="a -play.jsonl or -live.jsonl recording (with --table: several)")
+    ap.add_argument("--table", action="store_true", help="one scorecard table row per play recording")
     ap.add_argument("--live", default=None, help="the spectator recording (default: the -live.jsonl beside a -play "
                                                      "one; 'none' to skip it)")
     ap.add_argument("--me", type=int, default=None)
     ap.add_argument("--name", default=None)
     a = ap.parse_args(argv)
     p = print
+    if a.table:
+        rows = []
+        for path in a.recording:
+            c = SC.scorecard(load(path))
+            if c is not None:
+                rows.append((os.path.basename(path).replace("-play.jsonl", ""), SC.setup_of(path), c))
+        SC.table(rows, p)
+        return
+    a.recording = a.recording[0]
     msgs = load(a.recording)
     me = a.me
     live_path = a.live
     if any(m.get("type") in ("hello", "obs") for m in msgs if isinstance(m, dict)):
         got = play_report(msgs, p)
         me = me if me is not None else got
+        c = SC.scorecard(msgs)
+        if c is not None:
+            p("")
+            SC.report(c, p)
         if live_path is None and a.recording.endswith("-play.jsonl"):
             cand = a.recording[: -len("-play.jsonl")] + "-live.jsonl"
             live_path = cand if os.path.exists(cand) else None

@@ -50,6 +50,9 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
   NAV_ROUTE    walking goals (zone spot, cubes, crates, laser fetch, I's approach) follow weighted-A* routes on
                the precomputed 2 m ground grid (nav.py; nav/ground.nav.gz from tools/navgrid.py), planned within
                2 ms per decision; no grid for this map = straight lines as before.
+  LOOT_SWEEP   L: with no enemy mech within 40 m, walk (routed) to cubes and the weapons loot.py would take
+               within 40 m, death-drop piles first (and to a fresh kill spot before the pile is in view); abort
+               for 4 s on hits from 2+ mechs or a laser charging at us (loot_sweep.py).
 """
 STRAFE = True
 DODGE = True
@@ -72,8 +75,9 @@ AMBUSH = False  # exp J (next, on top of whatever wins)
 NPC_AWARE = True  # kept: exp N 3.52 (no effect yet; on by the user's call, QUEUE.md)
 STUCK_ESCAPE = True  # kept: exp S 3.56 (QUEUE.md); the safety net for routing
 NAV_ROUTE = True  # exp R under test, on top of S (QUEUE.md): arena PGBKZ / MUWWU 0 / 1.5 s stuck, no zone damage
+LOOT_SWEEP = False  # exp L (arena-tested first)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
-               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE")
+               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...
