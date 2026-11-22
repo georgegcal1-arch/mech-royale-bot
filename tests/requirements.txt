@@ -2,3 +2,4 @@
 #   python -m pip install -r tests/requirements.txt
 pytest==9.2.0
 hypothesis==6.170.17
+websockets==15.0.1  # tests/test_arena_tools.py (skipped without it)

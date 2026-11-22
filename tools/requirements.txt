@@ -1,0 +1,3 @@
+# Dev-only tools (tools/play.py, tools/record.py talk to play.joinbuilders.org). The bot itself is stdlib-only.
+#   python -m pip install -r tools/requirements.txt
+websockets==15.0.1

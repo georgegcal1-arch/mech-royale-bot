@@ -16,3 +16,5 @@ __pycache__/
 venv/
 QUEUE.md
 GAME_KNOWLEDGE.md
+tools/
+recordings/

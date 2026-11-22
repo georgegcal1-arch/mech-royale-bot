@@ -20,3 +20,6 @@ tests/out/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Arena match recordings (tools/record.py, tools/play.py): large, local only
+recordings/
