@@ -85,6 +85,15 @@ def play_report(msgs, p):
     p(f"  weapons at the end: {[w and w.get('kind') for w in o['self'].get('weapons') or []]}, "
       f"cubes {o['self'].get('cubes')}, energy {o['self'].get('energy')}")
 
+    # what the bot was doing (labels recorded by tools/play.py)
+    labels = [s.get("label") or "" for s in msgs if s.get("type") == "sent" and "label" in s]
+    if any(labels):
+        modes = collections.Counter(lab.split(" ")[0] for lab in labels if lab)
+        p("  modes: " + ", ".join(f"{k} {v}" for k, v in modes.most_common(12)))
+        tags = {"npc self-defense": " npc ", "npc farm": " farm ", "npc avoid": "/npc ", "laser short": " short ",
+                "crate": " crate "}
+        p("  triggers: " + ", ".join(f"{k} {sum(t in lab + ' ' for lab in labels)}" for k, t in tags.items()))
+
     # answer times
     rx = {m["tick"]: m["_rx"] for m in obs if "_rx" in m}
     lat = [(s["at"] - rx[s["action"]["tick"]]) * 1000 for s in msgs

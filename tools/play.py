@@ -94,7 +94,7 @@ class Bridge:
                 continue
             if "tick" not in act:
                 continue
-            act.pop("debug", None)
+            label = ((act.pop("debug", None) or {}).get("label")) or ""  # the bot's mode, kept for analysis
             t0 = self.obs_rx.pop(act["tick"], None)
             if self.ws is not None:
                 try:
@@ -104,7 +104,7 @@ class Bridge:
                 self.sent_n += 1
                 if t0 is not None:
                     self.lat_ms.append((time.perf_counter() - t0) * 1000)
-            self.record({"type": "sent", "at": time.time(), "action": act})
+            self.record({"type": "sent", "at": time.time(), "action": act, "label": label})
 
     async def on_message(self, msg):
         kind = msg.get("type")
