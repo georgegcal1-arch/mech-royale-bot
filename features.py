@@ -62,6 +62,10 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
                see and let it come, fighting within 43 m (ambush.py without its lightning requirement).
   HEAL_QUIET   B4: below 80% HP with no mech engaging us (no hit in 3 s, none aimed at us in reach, none within
                45 m), hold all fire so regen's 5 s timer runs; the legs carry on (loot, zone) (heal.py).
+  LASER_COUNTER  a visible enemy laser with a line to us: keep a cover anchor from the exposure map
+               (nav/exposure.nav.gz, tools/exposure.py) within 8 m, boost to it when the laser charges, and in the
+               1.5 s after its beam peek and shoot (or, with lightning, close in); with lightning the anchor is the
+               next cover closer to it (laser_counter.py).
   NO_MORTAR    B5: never carry a mortar (an enemy laser does +60% to a mortar carrier, protocol.md cook-off):
                never take one, drop one we hold, and loot_sweep never walks to one (loot.py, loot_sweep.py).
 """
@@ -92,10 +96,11 @@ AGGRO_CLOSE = False  # bracket B2
 AGGRO_HOLD = False  # bracket B3
 HEAL_QUIET = False  # bracket B4
 NO_MORTAR = False  # bracket B5
+LASER_COUNTER = False  # laser duels (arena-tested first)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
                "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",
-               "NO_MORTAR")
+               "NO_MORTAR", "LASER_COUNTER")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...
