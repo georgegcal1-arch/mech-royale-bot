@@ -38,8 +38,9 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | B5 | never carry a mortar (`NO_MORTAR`: cook-off +60%) | L + B5 | ef170cc | **4.06** | +0.14 vs 3.92 | **kept as best** (user's call: clear mechanism) |
 | B2 | aggression close (`AGGRO_CLOSE`) | L + B5 + B2 | 7bbfc8d | **4.50** | +0.44 vs 4.06 | **winner: kept on** |
 | B3 | aggression hold (`AGGRO_HOLD`) | - | - | - | - | skipped (the opposite of the winner B2) |
-| B4 | heal between fights (`HEAL_QUIET`) | L + B5 + B2 + B4 | (exp B4 commit, see git log) | | needs 4.65 | |
-| B2b | even closer (`AGGRO_RUSH`: close on the nearest hunter once seen, boost, under 35 m, lightning pickups first) | best + B2b | | | | after B4 |
+| B4 | heal between fights (`HEAL_QUIET`) | L + B5 + B2 + B4 | 54f49ae | **4.54** | +0.04 vs 4.50 | **kept on** (user's call; under +0.15) |
+| B2b | even closer (`AGGRO_RUSH`: close on the nearest hunter once seen, boost, under 35 m, lightning pickups first) | L + B5 + B2 + B4 + B2b | 1ea7712 | **4.69** | +0.15 vs 4.54 | **winner: kept on** |
+| LC | laser counter (`LASER_COUNTER`, merged from `v9-laser`: hide on the laser's clock, close in its cooldown window) | B2b + LC | (exp LC commit, see git log) | | needs 4.84 | |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
@@ -72,5 +73,4 @@ already is the combination of the winners.
   Arena: baseline VGYDJ 14th (a drone did 838 dmg); with N MNUCG 1st, AGTRR 3rd, but no drone came near us, so
   N went untested there. **Status: merged for step N.**
 
-Status: **B4 ready to submit** (L + B5 + B2 + HEAL_QUIET). Next after its score: B2b. LASER_COUNTER (branch `v9-laser`,
-off) is being re-aimed at the winner: close in during the laser's cooldown window, cover only while it is ready.
+Status: **LC ready to submit** (L + B5 + B2 + B4 + B2b + LASER_COUNTER). Next: B2c (even closer, branch `v9-b2c`, off).

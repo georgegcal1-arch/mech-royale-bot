@@ -112,12 +112,14 @@ from npc import NPC_AVOID_MODES, NpcMixin
 from stuck import StuckMixin, new_history
 from nav import NavGrid, NavMixin
 from loot_sweep import LootSweepMixin
+from laser_counter import LC_SLOW_M, LC_STOP_M, ExposureMap, LaserCounterMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
           HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin,
-          LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin, StuckMixin, NavMixin, LootSweepMixin):
+          LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin, StuckMixin, NavMixin, LootSweepMixin,
+          LaserCounterMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
@@ -163,6 +165,12 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.stuck_hist, self.escape, self.last_stuck = new_history(), None, None  # v9 STUCK_ESCAPE
         self.nav, self.navgrid, self.nav_tick = None, None, None  # v9 NAV_ROUTE: the ground grid (nav.py)
         self.last_pos, self.kill_spots, self.sweep_cool = {}, [], 0.0  # v9 LOOT_SWEEP
+        self.exposure, self.laser_fired, self.lc = None, {}, None  # v9 LASER_COUNTER
+        if self.world is not None:
+            try:
+                self.exposure = ExposureMap.load(hello["map"]["dir"])
+            except Exception as e:
+                mf.log(f"exposure map not loaded: {e!r}")
         if self.world is not None:
             try:
                 self.navgrid = NavGrid.load(hello["map"]["dir"])
@@ -250,7 +258,24 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
                 else:
                     yaw = math.atan2(goal[1] - y, goal[0] - x)
                     move = [math.cos(yaw), math.sin(yaw)]
-        if covering and mode != "zone!":  # v9 H: boost out of the charging laser's line
+        lcm = None
+        if features.LASER_COUNTER:  # v9 (laser_counter.py): hide on the laser's clock, peek / close in its window
+            self.note_lasers(obs)
+            lcm = self.laser_counter(obs, enemies, mode)
+            if lcm is not None:
+                goal, boost, mode = lcm
+                if features.NAV_ROUTE:
+                    goal = self.nav_waypoint(obs, goal)
+                legs = None
+                yaw = math.atan2(goal[1] - y, goal[0] - x)
+                gd = math.hypot(goal[0] - x, goal[1] - y)
+                if mode != "lc/close" and gd <= LC_STOP_M:  # at the anchor: stand (a boosting overshoot exposes us)
+                    move, boost = [0.0, 0.0], False
+                else:
+                    move = [math.cos(yaw), math.sin(yaw)]
+                    if mode != "lc/close" and gd <= LC_SLOW_M:
+                        boost = False
+        if covering and mode != "zone!" and lcm is None:  # v9 H: boost out of the charging laser's line
             goal, legs, boost, mode = guard[1], None, True, "guard"
             yaw = math.atan2(goal[1] - y, goal[0] - x)
             move = [math.cos(yaw), math.sin(yaw)]
@@ -261,6 +286,11 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
             legs, goal = None, None
             yaw = math.atan2(move[1], move[0])
         act.update(move=move, aim=[yaw, 0.0], boost=boost, jump=obs["tick"] % 40 == 0, fire=[False, False])
+        if mode == "guard" or mode.startswith("lc/"):
+            # sprinting to cover: no hop, and boost only on the ground (boost in the air is a jet, protocol.md
+            # section 7: it lifts us into the open sky instead of behind the wall)
+            act["jump"] = False
+            act["boost"] = bool(act["boost"] and me.get("grounded", True))
         if esc is not None:
             act["jump"] = esc_jump
 

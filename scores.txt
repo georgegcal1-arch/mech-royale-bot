@@ -19,3 +19,4 @@ expB1 = 3.81  # bracket B1: L + UPGRADES_OFFENSE (commit baea551); -0.11 vs 3.92
 expB5 = 4.06  # bracket B5: L + NO_MORTAR (commit ef170cc); +0.14 vs 3.92 (under +0.15) -> kept as new best by the user's call (clear mechanism); bar 4.06
 expB2 = 4.50  # bracket B2: L + B5 + AGGRO_CLOSE (commit 7bbfc8d); +0.44 vs 4.06 -> winner, kept on; bar 4.50. B3 (hold) skipped as its opposite
 expB4 = 4.54  # bracket B4: L + B5 + B2 + HEAL_QUIET (commit 54f49ae); +0.04 vs 4.50 (under +0.15) -> kept on by the user's call; bar 4.54
+expB2b = 4.69  # bracket B2b: L + B5 + B2 + B4 + AGGRO_RUSH (commit 1ea7712); +0.15 vs 4.54 -> winner, kept on; bar 4.69
