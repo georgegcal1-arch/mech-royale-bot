@@ -41,6 +41,9 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
                within 40 m that it can't see, near its path to us, stand still and silent with fire held,
                and spring (the normal lightning fight) when it comes within 43 m; abort on damage, a second
                enemy, the zone, or a timeout (ambush.py).
+  NPC_AWARE    N: a drone within 50 m that hit us in the last 2.5 s becomes the target (lightning if held) unless
+               a mech is within 40 m; while fighting a mech the legs turn away from drones' aggro range; when
+               quiet (economy's rule) and at half HP or more, farm drones within 60 m (npc.py).
 """
 STRAFE = True
 DODGE = True
@@ -60,8 +63,9 @@ LOOKAHEAD = False  # exp G 3.23: below the 3.46 bar (QUEUE.md)
 LASER_GUARD = True  # exp HI (laser discipline) under test, with NO_CHIP, on top of DUEL + LIGHTNING (QUEUE.md)
 NO_CHIP = True  # exp HI under test (QUEUE.md)
 AMBUSH = False  # exp J (next, on top of whatever wins)
+NPC_AWARE = False  # exp N (arena-tested before it is queued)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
-               "LASER_GUARD", "NO_CHIP", "AMBUSH")
+               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...

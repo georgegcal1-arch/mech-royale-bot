@@ -204,8 +204,25 @@ minutes" for practice. Matches end when one mech is left or at 8:00 *(§9; confi
 - **play.joinbuilders.org** runs the same mechfight/1 engine. Private matches fill empty seats with bots
   *(browser game / track page)*. Its zone runs 240 s, so its timings don't transfer.
 - **The kit has no local simulator.** `check.py` replays 300 recorded observations that don't react to the
-  bot, so it checks the protocol, not play *(§1)*. Only practice submissions measure how well a setup
-  plays.
+  bot, so it checks the protocol, not play *(§1)*. Practice submissions remain the real measure.
+- **Our arena tools** (`tools/play.py`, `record.py`, `analyze.py`) play and record private matches there in
+  real time *(measured: match VGYDJ, 2026-11-21)*.
+  - **Lobby:** a seat sends `{"type":"ready","name":…}`; the host clicks Start.
+  - **Feed:** the spectator feed is `mechreplay/1`. A header gives the frame fields and mech names. Frame and
+    event `t` are ticks at 20 Hz. Events are keyed by `e` (`hit`, `death {id,by,place}`, `fire`, `charge`,
+    `laser`, `zap`, `short`, `cookoff`, `concuss`, `weapon`, `cube`, `upgrade`, `drop`,
+    `end {places by id}`).
+  - **Latency:** our answers left 2 ms (median) after each observation arrived; 1 of 356 was over 50 ms.
+- **The private-room config is the quick game.** The match lasts 240 s and the zone closes at 208 s (phases
+  start shrinking at 30, 77.5, 115, 147.5, 175 and 195 s). Supply drops are called at 35, 70 and 105 s.
+  The bot reads all of this from `hello.config`, but timings and scores don't transfer to practice.
+- **House bots in a private room:** 15 seats with names `red`, `expert`, `crimson`, `skirmish` and `astra`
+  (`house:probe-red-best`, `house:expert`, `house:probe-red-honest`, `house:probe-astra-skirmish`,
+  `house:probe-astra-finalist`, three of each). **They killed each other** (in VGYDJ every death but ours
+  was mech on mech), unlike the practice squad on the track page. Treat arena results as a sanity check,
+  not a score estimate.
+- **Drones are a real threat early.** In VGYDJ an NPC drone did 838 of the 1400 damage that killed us
+  (28+ hits at 10–25 m, mostly from behind), while the bot, which targets mechs first, never shot it.
 
 ## 14. Measured in the kit's recorded match
 
