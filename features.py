@@ -87,11 +87,11 @@ NPC_AWARE = True  # kept: exp N 3.52 (no effect yet; on by the user's call, QUEU
 STUCK_ESCAPE = True  # kept: exp S 3.56 (QUEUE.md); the safety net for routing
 NAV_ROUTE = True  # kept: exp R (scored with L: 3.92, QUEUE.md)
 LOOT_SWEEP = True  # winner: exp L 3.92 (with R, QUEUE.md)
-UPGRADES_OFFENSE = True  # bracket B1 under test, on top of L (QUEUE.md)
+UPGRADES_OFFENSE = False  # bracket B1 3.81: below 3.92, off (QUEUE.md)
 AGGRO_CLOSE = False  # bracket B2
 AGGRO_HOLD = False  # bracket B3
 HEAL_QUIET = False  # bracket B4
-NO_MORTAR = False  # bracket B5
+NO_MORTAR = True  # bracket B5 under test, on top of L (QUEUE.md)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
                "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",

@@ -34,8 +34,8 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | S | stuck escape (`STUCK_ESCAPE`, navigation step 1) | N + STUCK_ESCAPE | 4fead84 | **3.56** | +0.04 vs 3.52 | **kept as best** (user's call; under +0.15); arena MAZAE 1st / 5 kills, the escape never triggered |
 | R | routes (`NAV_ROUTE`, navigation step 2, ground layer) | S + NAV_ROUTE (+ H's cover checks 32 -> 20) | (exp R commit) | | needs 3.71 | arena PGBKZ 1st / MUWWU 8th: 0 / 1.5 s stuck, 1 / 3% crawling, no zone damage, 251 / 76 route decisions |
 | L | loot sweep (`LOOT_SWEEP`) | R + LOOT_SWEEP | a6ce0db | **3.92** | +0.36 vs 3.56 | **winner: kept on** (R's own score was not reported, so R + L count together) |
-| B1 | upgrades offense first (`UPGRADES_OFFENSE`) | L + B1 | (exp B1 commit, see git log) | | needs 4.07 | |
-| B5 | never carry a mortar (`NO_MORTAR`: cook-off +60%) | best + B5 | | | | second, after B1 |
+| B1 | upgrades offense first (`UPGRADES_OFFENSE`) | L + B1 | baea551 | **3.81** | -0.11 vs 3.92 | loser: turned off (defensive upgrades kept) |
+| B5 | never carry a mortar (`NO_MORTAR`: cook-off +60%) | L + B5 | (exp B5 commit, see git log) | | needs 4.07 | |
 | B2 | aggression close (`AGGRO_CLOSE`) | best + B2 | | | | |
 | B3 | aggression hold (`AGGRO_HOLD`) | best + B3 | | | | |
 | B4 | heal between fights (`HEAL_QUIET`) | best + B4 | | | | |
@@ -71,5 +71,5 @@ already is the combination of the winners.
   Arena: baseline VGYDJ 14th (a drone did 838 dmg); with N MNUCG 1st, AGTRR 3rd, but no drone came near us, so
   N went untested there. **Status: merged for step N.**
 
-Status: **B1 ready to submit** (L + UPGRADES_OFFENSE). Brackets B1-B4 are submitted one at a time; winners (+0.15)
-stack. Research pending: `LASER_COUNTER` (exposure map + laser-cycle peeking), not built.
+Status: **B5 ready to submit** (L + NO_MORTAR). Next after its score: B2, B3, B4 in turn. LASER_COUNTER is on branch
+`v9-laser` (WIP, off): replays hide 3/9 seen-coming laser hits vs 1/9.

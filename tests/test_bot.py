@@ -183,13 +183,14 @@ class Housekeeping(unittest.TestCase):
         self.assertFalse(b.act(obs(weapons=[gun(ammo=0, reload=2.0), None])).get("reload"), "already reloading")
 
     def test_takes_laser_or_mortar_within_4m(self):
+        was, features.NO_MORTAR = features.NO_MORTAR, False  # v3's rule (v9 B5 never takes one: test_brackets.py)
+        self.addCleanup(setattr, features, "NO_MORTAR", was)
         b = B.Bot(hello())
         def take(*pickups, weapons=None):
             return b.act(obs(pickups=[{"id": 8000 + i, "kind": k, "pos": p} for i, (k, p) in enumerate(pickups)],
                              weapons=weapons)).get("take")
         self.assertEqual(take(("mortar", [3, 0, 200])), 8000)
         self.assertEqual(take(("mortar", [1, 0, 200]), ("laser", [3.9, 0, 200])), 8001, "laser preferred")
-        import features
         was, features.LIGHTNING = features.LIGHTNING, False  # v9 features.LIGHTNING takes it (test_v9fg.py)
         try:
             self.assertIsNone(take(("lightning", [1, 0, 200])))
