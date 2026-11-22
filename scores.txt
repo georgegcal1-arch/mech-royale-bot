@@ -23,3 +23,4 @@ expB2b = 4.69  # bracket B2b: L + B5 + B2 + B4 + AGGRO_RUSH (commit 1ea7712); +0
 # scorer switched to builders-4 (96 matches): scores above are not comparable with those below
 expB2b_b4 = 4.36  # B2b (commit 1ea7712) re-scored under builders-4; new bar 4.36, a step needs 4.51
 expLC = 4.69  # builders-4: B2b + LASER_COUNTER (commit d7b00e8); +0.33 vs 4.36 -> winner, kept on; bar 4.69, a step needs 4.84
+expB2c = 4.59  # builders-4: LC + AGGRO_CLOSER (commit a8ba22e); -0.10 vs 4.69 -> loser: AGGRO_CLOSER off; bar stays 4.69 (LC), a step needs 4.84

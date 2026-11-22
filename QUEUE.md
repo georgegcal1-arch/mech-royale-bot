@@ -6,7 +6,8 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 - **Stacked:** each experiment (or bundle of switches) is turned on *on top of the current best setup*, which keeps all winners on.
   Only the experiment under test changes between two submissions.
 - **Bar:** the current best score. A step counts as a winner only if it beats the bar by **0.15+**
-  (noise). Now: best = **4.50** (L + B5 + B2), so a step must score **4.65 or more**.
+  (noise). Now (scorer builders-4, 96 matches): best = **4.69** (LC = L + B5 + B2 + B4 + B2b + LASER_COUNTER),
+  so a step must score **4.84 or more**.
   (HI was +0.06 over 3.46, under the 0.15 rule; kept as the new best by the user's call.)
 - **Winner:** it stays on, and its score becomes the new bar. **Loser:** it is turned off again before
   the next step, so the next step stacks on the unchanged best.
@@ -41,7 +42,9 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | B4 | heal between fights (`HEAL_QUIET`) | L + B5 + B2 + B4 | 54f49ae | **4.54** | +0.04 vs 4.50 | **kept on** (user's call; under +0.15) |
 | B2b | even closer (`AGGRO_RUSH`: close on the nearest hunter once seen, boost, under 35 m, lightning pickups first) | L + B5 + B2 + B4 + B2b | 1ea7712 | **4.69** | +0.15 vs 4.54 | **winner: kept on** |
 | LC | laser counter (`LASER_COUNTER`, merged from `v9-laser`: hide on the laser's clock, close in its cooldown window) | B2b + LC | d7b00e8 | **4.69** | +0.33 vs 4.36 (builders-4) | **winner: kept on** |
-| B2c | closer still (`AGGRO_CLOSER`: hold 20 m with lightning / 25 m without, approach to 27 m, boost the approach whenever energy > 25) | LC + B2c | (exp B2c commit, see git log) | | needs 4.84 | |
+| B2c | closer still (`AGGRO_CLOSER`: hold 20 m with lightning / 25 m without, approach to 27 m, boost the approach whenever energy > 25) | LC + B2c | a8ba22e | **4.59** | -0.10 vs 4.69 | loser: turned off |
+| F1 | threat targeting (`THREAT_TARGET`: shoot the clear mech most dangerous to us now, a < ~1 s kill first; threat.py) | LC + F1 (B2c off) | | | needs 4.84 | 1 arena match first |
+| F2 | multi guard (`MULTI_GUARD`: no rush approach when 2+ other mechs are within 100 m of the prey; fight from where we are) | best after F1 + F2 (B2c off) | | | needs bar + 0.15 | 1 arena match first; stacks on F1 only if F1 wins |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
@@ -74,4 +77,9 @@ already is the combination of the winners.
   Arena: baseline VGYDJ 14th (a drone did 838 dmg); with N MNUCG 1st, AGTRR 3rd, but no drone came near us, so
   N went untested there. **Status: merged for step N.**
 
-Status: **B2c ready to submit** (LC + AGGRO_CLOSER). Scores from LC on are under scorer builders-4 (96 matches)..
+- Branch `v9-f12` (93527d4, pushed): F1 `THREAT_TARGET` (threat.py) and F2 `MULTI_GUARD` (movement.py,
+  nochip.crowded), both off, plus `tools/scorecard_deep.py` (deep scorecard in analyze.py). Built on B2c's commit,
+  but with `AGGRO_CLOSER` off both stack on LC.
+
+Status: B2c scored 4.59 (loser, off). **Next: F1** (LC + THREAT_TARGET, 1 arena match, then push to main),
+then F2 the same way. Scores from LC on are under scorer builders-4 (96 matches)..
