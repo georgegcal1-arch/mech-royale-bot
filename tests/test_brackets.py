@@ -228,3 +228,29 @@ def test_b2b_prefers_lightning_pickups(bot):
     obs["pickups"] = [_pickup_here(obs, 8001, "laser"), _pickup_here(obs, 8002, "lightning")]
     assert _take(bot, obs, *WINNERS).get("take") == 8001, "off: laser first"
     assert _take(bot, obs, *WINNERS, "AGGRO_RUSH").get("take") == 8002, "rush: lightning first"
+
+
+B2B = WINNERS + ("AGGRO_RUSH",)
+
+
+def test_b2c_closes_further_than_b2b(bot):
+    obs = _flat(bot, _arm(base_obs(100), GUN, None))
+    obs["mechs"] = [_mech(obs, 7, 30, 0)]  # inside B2b's 32 m, outside B2c's 27 m
+    with switches(*B2B):
+        assert _mode(respond(bot, obs)[0]) != "approach"
+    reset(bot)
+    _flat(bot, obs)
+    with switches(*B2B, "AGGRO_CLOSER"):
+        assert _mode(respond(bot, obs)[0]) == "approach"
+        assert bot.duel_range(obs["self"]) == 25.0
+        assert bot.duel_range(_arm(base_obs(100), GUN, ARC)["self"]) == 20.0
+
+
+@pytest.mark.parametrize("dist, energy, boost", [(50, 30.0, True), (120, 20.0, False), (40, 26.0, True)])
+def test_b2c_boosts_whenever_energy_above_25(bot, dist, energy, boost):
+    obs = _flat(bot, _arm(base_obs(100), GUN, None))
+    obs["self"]["energy"] = energy
+    obs["mechs"] = [_mech(obs, 7, dist, 0)]
+    with switches(*B2B, "AGGRO_CLOSER"):
+        action, _ = respond(bot, obs)
+    assert _mode(action) == "approach" and bool(action.get("boost")) is boost, (_label(action), action.get("boost"))

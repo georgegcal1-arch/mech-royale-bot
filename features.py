@@ -65,6 +65,8 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
   AGGRO_RUSH   B2b: closer still than B2: approach the target (the nearest hunter once seen) to under 32 m,
                boosting while it is over 60 m away (with 35+ energy), hold 25 m with lightning / 30 m without, and
                prefer lightning pickups (take lightning > laser > mortar; loot_sweep counts lightning closer).
+  AGGRO_CLOSER B2c, on top of B2b: closer still: approach to under 27 m, hold 20 m with lightning / 25 m without,
+               and boost the approach at any range whenever energy > 25 (duel.py, nochip.py).
   LASER_COUNTER  a visible enemy laser with a line to us: keep a cover anchor from the exposure map
                (nav/exposure.nav.gz, tools/exposure.py) within 8 m, boost to it when the laser charges, and in the
                1.5 s after its beam peek and shoot (or, with lightning, close in); with lightning the anchor is the
@@ -101,10 +103,11 @@ HEAL_QUIET = True  # bracket B4: 4.54, kept on (QUEUE.md)
 NO_MORTAR = True  # kept: bracket B5 4.06 (QUEUE.md)
 AGGRO_RUSH = True  # winner: bracket B2b 4.69 (QUEUE.md)
 LASER_COUNTER = True  # step LC under test, on top of L + B5 + B2 + B4 + B2b (QUEUE.md)
+AGGRO_CLOSER = False  # bracket B2c (branch v9-b2c): after LC's score
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
                "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",
-               "NO_MORTAR", "AGGRO_RUSH", "LASER_COUNTER")
+               "NO_MORTAR", "AGGRO_RUSH", "LASER_COUNTER", "AGGRO_CLOSER")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...
