@@ -10,7 +10,7 @@ import pytest
 import loot_sweep as LS
 from conftest import REPO, base_obs, new_bot, reset, respond
 from test_v9 import _label, _mech, _mode, switches
-from test_v9fg import GUN, LASER, _arm
+from test_v9fg import ARC, GUN, LASER, _arm
 from test_v9hij import Box
 
 sys.path.insert(0, os.path.join(REPO, "tools"))
@@ -115,6 +115,39 @@ def test_better_weapons_only(bot):
     obs["pickups"] = [_pickup(obs, 8002, "mortar", 30, 0)]
     assert bot.sweep_goal(obs, []) is None, "loot.py wouldn't take a mortar here"
     assert LS.would_take("lightning", [dict(GUN), dict(LASER)]) is True, "completes laser + lightning"
+
+
+def _edge_scene(bot, shrink_in):
+    """A laser 30 m east, 10 m outside the next circle's margin (arena ZEFXJ: on its edge); we are inside."""
+    obs = _scene(bot, GUN, None)
+    x, y, _ = obs["self"]["pos"]
+    t = obs["t"]
+    obs["zone"].update(next_center=[x - 260.0, y], next_radius=290.0, shrink_start=t + shrink_in - 20.0,
+                       shrink_end=t + shrink_in)
+    obs["pickups"] = [_pickup(obs, 8050, "laser", 30, 0)]
+    return obs
+
+
+def test_a_weapon_just_outside_the_next_circle_when_there_is_time(bot):
+    obs = _edge_scene(bot, shrink_in=100.0)
+    x, y, _ = obs["self"]["pos"]
+    assert bot.sweep_goal(obs, []) == (x + 30.0, y), "time to grab it and walk back in"
+    obs["cubes"], obs["pickups"] = [_cube(obs, 5001, 30, 0)], []
+    assert bot.sweep_goal(obs, []) is None, "a cube out there isn't worth it"
+    obs = _edge_scene(bot, shrink_in=12.0)
+    assert bot.sweep_goal(obs, []) is None, "the circle closes before we'd be back"
+
+
+def test_a_laser_beats_a_closer_cube_while_we_hold_neither(bot):
+    obs = _scene(bot, GUN, None)
+    x, y, _ = obs["self"]["pos"]
+    obs["cubes"] = [_cube(obs, 5001, 15, 0)]
+    obs["pickups"] = [_pickup(obs, 8001, "laser", -35, 0)]
+    assert bot.sweep_goal(obs, [])[0] < x, "the laser (west, 35 m) over the cube (east, 15 m)"
+    obs = _scene(bot, GUN, ARC)  # holding lightning already: the closer cube first
+    obs["cubes"] = [_cube(obs, 5001, 15, 0)]
+    obs["pickups"] = [_pickup(obs, 8001, "laser", -35, 0)]
+    assert bot.sweep_goal(obs, [])[0] > x
 
 
 @pytest.mark.parametrize("case", ["two_attackers", "laser_charging"])

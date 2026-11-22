@@ -6,7 +6,10 @@ heard. So, with no enemy mech within SWEEP_SAFE_M:
 
   Targets: cubes and the weapons loot.py would take (laser > lightning > mortar into an empty slot; laser or
     lightning over a mortar, or over the gun to complete laser + lightning) within SWEEP_M, on the ground (not
-    on a roof), inside the next circle by SWEEP_NEXT_MARGIN_M, not within NPC_AGGRO_M of a drone.
+    on a roof), not within NPC_AGGRO_M of a drone, and inside the next circle by SWEEP_NEXT_MARGIN_M. A weapon
+    may lie outside it if we can walk there and back inside before the shrink ends (minus SPARE_S) and it is
+    clear of the current edge (arena ZEFXJ: a laser on the next circle's edge was skipped, and a gun-only bot
+    then died to a laser). A laser or lightning counts WANT_BONUS_M closer while we hold neither.
   Piles first: an item within PILE_M of where we killed a mech in the last SWEEP_AFTER_KILL_S (killed mechs drop
     all their cubes + 2 and their weapons, protocol.md section 10) counts PILE_BONUS_M closer; right after a kill,
     with the pile not in view yet, walk to the kill spot itself if it is within SWEEP_KILL_SPOT_M.
@@ -16,6 +19,8 @@ heard. So, with no enemy mech within SWEEP_SAFE_M:
     SWEEP_ABORT_S.
 """
 import math
+
+from safety import EDGE_MARGIN_M, SPARE_S
 
 SWEEP_M = 40.0
 SWEEP_SAFE_M = 40.0
@@ -30,6 +35,7 @@ SWEEP_KILL_ARRIVE_M = 4.0
 SWEEP_MULTI_S = 3.0
 SWEEP_ABORT_S = 4.0
 TAKE_ORDER = ("laser", "lightning", "mortar")
+WANT_BONUS_M = 25.0         # a laser or lightning when we hold neither counts this much closer
 
 
 def would_take(kind, weapons):
@@ -61,14 +67,21 @@ class LootSweepMixin:
                 self.kill_spots.append((t, x, y))
         self.kill_spots = [k for k in self.kill_spots if t - k[0] <= SWEEP_AFTER_KILL_S]
 
-    def _sweepable(self, obs, p, max_d=SWEEP_M):
-        me, zn = obs["self"], obs["zone"]
+    def _sweepable(self, obs, p, max_d=SWEEP_M, weapon=False):
+        me, zn, t = obs["self"], obs["zone"], obs["t"]
         x, y, z = me["pos"]
-        if math.hypot(p[0] - x, p[1] - y) > max_d:
+        d = math.hypot(p[0] - x, p[1] - y)
+        if d > max_d:
             return False
         (ncx, ncy), nr = zn["next_center"], zn["next_radius"]
-        if math.hypot(p[0] - ncx, p[1] - ncy) > nr - SWEEP_NEXT_MARGIN_M:
-            return False
+        out = math.hypot(p[0] - ncx, p[1] - ncy) - (nr - SWEEP_NEXT_MARGIN_M)
+        if out > 0:
+            # a cube outside the next circle isn't worth it; a weapon is if we can grab it and still be back
+            # inside before the shrink ends (heal.py's rule), and it isn't at the current edge
+            if not weapon or self._edge(zn, t, p[0], p[1]) < EDGE_MARGIN_M:
+                return False
+            if (d + out) / self._walk_mps(me) > zn["shrink_end"] - t - SPARE_S:
+                return False
         if self.world is not None and p[2] > self.world.ground(p[0], p[1]) + SWEEP_ROOF_M:
             return False
         for m in obs["mechs"]:
@@ -88,15 +101,18 @@ class LootSweepMixin:
         if len(attackers) >= 2 or self.laser_chargers(obs, enemies):
             self.sweep_cool = t + SWEEP_ABORT_S
             return None
-        items = [q["pos"] for q in obs.get("cubes") or []]
-        items += [q["pos"] for q in obs.get("pickups") or [] if would_take(q["kind"], me["weapons"])]
+        held = {w["kind"] for w in me["weapons"] if w}
+        items = [(q["pos"], None) for q in obs.get("cubes") or []]
+        items += [(q["pos"], q["kind"]) for q in obs.get("pickups") or [] if would_take(q["kind"], me["weapons"])]
         best = None
-        for p in items:
-            if not self._sweepable(obs, p):
+        for p, kind in items:
+            if not self._sweepable(obs, p, weapon=kind is not None):
                 continue
             d = math.hypot(p[0] - x, p[1] - y)
             if any(math.hypot(p[0] - kx, p[1] - ky) <= PILE_M for _, kx, ky in self.kill_spots):
                 d -= PILE_BONUS_M
+            if kind in ("laser", "lightning") and not held & {"laser", "lightning"}:
+                d -= WANT_BONUS_M
             if best is None or d < best[0]:
                 best = (d, (p[0], p[1]))
         if best is not None:
