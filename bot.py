@@ -113,6 +113,7 @@ from stuck import StuckMixin, new_history
 from nav import NavGrid, NavMixin
 from loot_sweep import LootSweepMixin
 from threat import ThreatMixin
+from drops import DropsMixin
 from laser_counter import LC_SLOW_M, LC_STOP_M, ExposureMap, LaserCounterMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
@@ -120,7 +121,7 @@ from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
           HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin,
           LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin, StuckMixin, NavMixin, LootSweepMixin,
-          LaserCounterMixin, ThreatMixin):
+          LaserCounterMixin, ThreatMixin, DropsMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
@@ -167,6 +168,7 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.nav, self.navgrid, self.nav_tick = None, None, None  # v9 NAV_ROUTE: the ground grid (nav.py)
         self.last_pos, self.kill_spots, self.sweep_cool = {}, [], 0.0  # v9 LOOT_SWEEP
         self.exposure, self.laser_fired, self.lc = None, {}, None  # v9 LASER_COUNTER
+        self.drop_state, self.arm_id = {"id": None, "abort_until": 0.0}, None  # v9 DROP_CAPTURE / EARLY_ARM
         if self.world is not None:
             try:
                 self.exposure = ExposureMap.load(hello["map"]["dir"])
@@ -236,6 +238,19 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, target, cube)
         if sweep is not None and mode == "cube":
             mode = "loot"
+        if (features.DROP_CAPTURE or features.EARLY_ARM) and mode not in ("zone!", "dodge"):  # v9 (drops.py)
+            dr = self.drops_step(obs, enemies)
+            if dr is not None:
+                goal, legs, boost, mode = dr
+                boost = bool(boost and me.get("grounded", True))  # boost in the air is a jet (protocol.md section 7)
+                if legs is not None:
+                    move = legs
+                    yaw = math.atan2(legs[1], legs[0])
+                else:
+                    if features.NAV_ROUTE:
+                        goal = self.nav_waypoint(obs, goal)
+                    yaw = math.atan2(goal[1] - y, goal[0] - x)
+                    move = [math.cos(yaw), math.sin(yaw)]
         if (features.NPC_AWARE and target is not None and target.get("kind") == "mech"
                 and mode in NPC_AVOID_MODES):  # v9 N: fighting a mech, stay out of drones' aggro range
             turned = self.npc_avoid(obs, move, self.npc_aggro_m)
