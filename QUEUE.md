@@ -35,6 +35,7 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | R | routes (`NAV_ROUTE`, navigation step 2, ground layer) | S + NAV_ROUTE (+ H's cover checks 32 -> 20) | (exp R commit) | | needs 3.71 | arena PGBKZ 1st / MUWWU 8th: 0 / 1.5 s stuck, 1 / 3% crawling, no zone damage, 251 / 76 route decisions |
 | L | loot sweep (`LOOT_SWEEP`) | R + LOOT_SWEEP | a6ce0db | **3.92** | +0.36 vs 3.56 | **winner: kept on** (R's own score was not reported, so R + L count together) |
 | B1 | upgrades offense first (`UPGRADES_OFFENSE`) | L + B1 | (exp B1 commit) | | needs 4.07 | |
+| B5 | never carry a mortar (`NO_MORTAR`: cook-off +60%) | best + B5 | | | | second, after B1 |
 | B2 | aggression close (`AGGRO_CLOSE`) | best + B2 | | | | |
 | B3 | aggression hold (`AGGRO_HOLD`) | best + B3 | | | | |
 | B4 | heal between fights (`HEAL_QUIET`) | best + B4 | | | | |

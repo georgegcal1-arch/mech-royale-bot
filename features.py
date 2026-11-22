@@ -53,6 +53,17 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
   LOOT_SWEEP   L: with no enemy mech within 40 m, walk (routed) to cubes and the weapons loot.py would take
                within 40 m, death-drop piles first (and to a fresh kill spot before the pile is in view); abort
                for 4 s on hits from 2+ mechs or a laser charging at us (loot_sweep.py).
+  Brackets (each submitted alone on top of the best):
+  UPGRADES_OFFENSE  B1: upgrade offers take gun_damage > gun_rate > laser_damage > lightning_range >
+               lightning_efficiency > lightning_chain > laser_charge first, then v6's plating > armor > nanites.
+  AGGRO_CLOSE  B2: approach any mech target to under 40 m (routed, cover-scored, whatever we hold, weak ones too)
+               and hold the fight at 30 m with lightning, else 35 m (nochip.py, duel.py).
+  AGGRO_HOLD   B3: a hunter closing in (up to 2 mechs in sight, any weapons): take the best nearby spot it can't
+               see and let it come, fighting within 43 m (ambush.py without its lightning requirement).
+  HEAL_QUIET   B4: below 80% HP with no mech engaging us (no hit in 3 s, none aimed at us in reach, none within
+               45 m), hold all fire so regen's 5 s timer runs; the legs carry on (loot, zone) (heal.py).
+  NO_MORTAR    B5: never carry a mortar (an enemy laser does +60% to a mortar carrier, protocol.md cook-off):
+               never take one, drop one we hold, and loot_sweep never walks to one (loot.py, loot_sweep.py).
 """
 STRAFE = True
 DODGE = True
@@ -76,8 +87,15 @@ NPC_AWARE = True  # kept: exp N 3.52 (no effect yet; on by the user's call, QUEU
 STUCK_ESCAPE = True  # kept: exp S 3.56 (QUEUE.md); the safety net for routing
 NAV_ROUTE = True  # kept: exp R (scored with L: 3.92, QUEUE.md)
 LOOT_SWEEP = True  # winner: exp L 3.92 (with R, QUEUE.md)
+UPGRADES_OFFENSE = False  # bracket B1
+AGGRO_CLOSE = False  # bracket B2
+AGGRO_HOLD = False  # bracket B3
+HEAL_QUIET = False  # bracket B4
+NO_MORTAR = False  # bracket B5
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
-               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP")
+               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
+               "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",
+               "NO_MORTAR")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...

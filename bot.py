@@ -241,7 +241,7 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
                 move, boost, legs, mode = look, False, look, "look"
                 yaw = math.atan2(look[1], look[0])
         amb = None
-        if features.AMBUSH and mode != "zone!" and guard is None:  # v9 J (ambush.py): wait hidden, silent
+        if (features.AMBUSH or features.AGGRO_HOLD) and mode != "zone!" and guard is None:  # v9 J / B3 (ambush.py)
             amb = self.ambush_step(obs, enemies, mode)
             if amb is not None:
                 goal, legs, boost, mode = amb["goal"], None, False, "ambush"
@@ -296,6 +296,10 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         else:
             self.reload_if_idle(act, me["weapons"], [] if amb is not None else enemies, target)
 
+        if self.heal_quiet(obs, enemies):  # v9 B4 (heal.py): no shots, so regen's timer runs
+            charging = {i for i, w in enumerate(me["weapons"]) if w and w["kind"] == "laser" and (w.get("charge") or 0) > 0}
+            act["fire"] = [bool(f) and i in charging for i, f in enumerate(act.get("fire") or [False, False])]
+            why = f"quiet {why}".strip()  # (a laser already charging keeps its trigger: letting go would fire it)
         if goal is not None and legs is None:
             mf.draw.point([goal[0], goal[1], z], "#40c0ff", 6)
         tag = f"{why} {target['id']}" if target is not None else why

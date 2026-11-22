@@ -19,14 +19,25 @@ class LootMixin:
     """Uses self.reach, self.early_s and self._edge (safety.py)."""
 
     def take_loot(self, obs, act):
-        """A laser or mortar within reach into the empty slot; a laser replaces a mortar. Sets act take/drop."""
+        """A laser or mortar within reach into the empty slot; a laser replaces a mortar. Sets act take/drop.
+        v9 B5 (features.NO_MORTAR): never a mortar (an enemy laser does +60% to a mortar carrier, protocol.md
+        section 7 "cook-off"), and one we hold is dropped when nothing else is being taken."""
         if features.LIGHTNING:
-            return self._take_loot_lightning(obs, act)
+            self._take_loot_lightning(obs, act)
+        else:
+            self._take_loot_v3(obs, act)
+        if features.NO_MORTAR and "take" not in act:
+            mortar = next((i for i, w in enumerate(obs["self"]["weapons"]) if w and w["kind"] == "mortar"), None)
+            if mortar is not None:
+                act["drop"] = mortar
+
+    def _take_loot_v3(self, obs, act):
         me = obs["self"]
         x, y, z = me["pos"]
         weapons = me["weapons"]
         held = {w["kind"] for w in weapons if w}
         near = [p for p in obs["pickups"] if p["kind"] in TAKE_KINDS and p["kind"] not in held
+                and not (features.NO_MORTAR and p["kind"] == "mortar")
                 and math.dist(p["pos"][:2], (x, y)) <= self.reach and abs(p["pos"][2] - z) <= TAKE_Z_M]
         near.sort(key=lambda p: (TAKE_KINDS.index(p["kind"]), math.dist(p["pos"][:2], (x, y))))
         if near and None in weapons:
@@ -43,6 +54,7 @@ class LootMixin:
         weapons = me["weapons"]
         slot = {w["kind"]: i for i, w in enumerate(weapons) if w}
         near = [p for p in obs["pickups"] if p["kind"] in TAKE_KINDS_LIGHTNING and p["kind"] not in slot
+                and not (features.NO_MORTAR and p["kind"] == "mortar")
                 and math.dist(p["pos"][:2], (x, y)) <= self.reach and abs(p["pos"][2] - z) <= TAKE_Z_M]
         if not near:
             return

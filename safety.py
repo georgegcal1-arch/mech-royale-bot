@@ -18,6 +18,9 @@ SPARE_S = 10.0         # walk at full speed if slow walking would reach the spot
 
 UPGRADE = "armor"  # v5: this if offered, else choice 0
 UPGRADE_PREFS = ("plating", "armor", "nanites")  # v6 (features.ECONOMY): first one offered, else choice 0
+# v9 B1 (features.UPGRADES_OFFENSE): weapon upgrades first (only offered for weapons we hold), then v6's
+UPGRADE_PREFS_OFFENSE = ("gun_damage", "gun_rate", "laser_damage", "lightning_range", "lightning_efficiency",
+                         "lightning_chain", "laser_charge") + UPGRADE_PREFS
 
 # --- safety net (v2) ---
 SLOW_DECISION_MS = 10.0  # log any decision slower than this
@@ -39,9 +42,11 @@ def zone_at(z, t):
 
 
 def pick_upgrade(offer):
-    """Index of the upgrade to take: the first of UPGRADE_PREFS offered (v5: UPGRADE), else 0."""
+    """Index of the upgrade to take: the first of UPGRADE_PREFS offered (v5: UPGRADE; v9 B1: UPGRADE_PREFS_OFFENSE),
+    else 0."""
     ids = [c.get("id") for c in offer.get("choices") or []]
-    for want in (UPGRADE_PREFS if features.ECONOMY else (UPGRADE,)):
+    prefs = UPGRADE_PREFS_OFFENSE if features.UPGRADES_OFFENSE else (UPGRADE_PREFS if features.ECONOMY else (UPGRADE,))
+    for want in prefs:
         if want in ids:
             return ids.index(want)
     return 0

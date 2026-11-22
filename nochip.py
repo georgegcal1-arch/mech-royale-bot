@@ -18,6 +18,7 @@ from perception import _hp_frac
 from safety import EDGE_MARGIN_M
 
 NO_CHIP_M = 100.0
+CLOSE_M = 40.0  # v9 B2 (features.AGGRO_CLOSE): approach any mech target until this close
 NO_CHIP_FINISH = 0.25
 APPROACH_RADII = (12.0, 24.0)
 APPROACH_FAN_RAD = (-1.0, -0.5, 0.0, 0.5, 1.0)  # around the bearing to the target
@@ -42,11 +43,13 @@ class NoChipMixin:
         x, y, z = me["pos"]
         tx, ty, tz = target["pos"]
         d0 = math.hypot(tx - x, ty - y)
-        if target.get("kind") != "mech" or d0 <= NO_CHIP_M or _hp_frac(target) < NO_CHIP_FINISH:
+        close = features.AGGRO_CLOSE  # v9 B2: fight under 45 m, whatever we hold, the weak ones too
+        if target.get("kind") != "mech" or d0 <= (CLOSE_M if close else NO_CHIP_M) or (
+                not close and _hp_frac(target) < NO_CHIP_FINISH):
             self.approach = None
             return None
         held = {w["kind"] for w in me["weapons"] if w}
-        if "laser" in held and "lightning" not in held:
+        if not close and "laser" in held and "lightning" not in held:
             return None
         if self.approach is not None and t < self.approach[0] and self.approach[1] == target["id"]:
             return self.approach[2]

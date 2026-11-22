@@ -18,10 +18,13 @@ Lightning does 60 per 0.25 s (240/s, plus chains) inside 45 m, and a short block
 """
 import math
 
+import features
+
 from perception import _wrap
 from safety import EDGE_MARGIN_M
 
 AMBUSH_HUNT_M = (50.0, 180.0)
+HOLD_MAX_ENEMIES = 2   # v9 B3 (features.AGGRO_HOLD)
 AMBUSH_CLOSING_MPS = 2.0
 AMBUSH_AIM_RAD = 0.35
 HIT_S = 3.0
@@ -131,7 +134,9 @@ class AmbushMixin:
             if any(math.dist(m["pos"], me["pos"]) <= AMBUSH_SPRING_M for m in enemies):
                 self._end_ambush(t, AMBUSH_RETRY_S)  # spring: the normal fight takes it
                 return None
-            if (mode == "zone!" or arc is None or len(enemies) >= 2 or dmg >= AMBUSH_ABORT_DMG
+            hold = features.AGGRO_HOLD  # v9 B3: any weapons, up to HOLD_MAX_ENEMIES in sight
+            if (mode == "zone!" or (arc is None and not hold) or len(enemies) >= (HOLD_MAX_ENEMIES + 1 if hold else 2)
+                    or dmg >= AMBUSH_ABORT_DMG
                     or t - a["t0"] > AMBUSH_MAX_S or self._edge(obs["zone"], t, *a["spot"]) < EDGE_MARGIN_M):
                 self._end_ambush(t, AMBUSH_COOL_S)
                 return None
@@ -141,11 +146,16 @@ class AmbushMixin:
                 self._end_ambush(t, AMBUSH_COOL_S)
                 return None
         else:
-            if mode == "zone!" or t < self.ambush_cool or arc is None or len(enemies) != 1:
+            hold = features.AGGRO_HOLD  # v9 B3: take cover and let hunters come, whatever we hold
+            if mode == "zone!" or t < self.ambush_cool or not enemies:
                 return None
-            if (me.get("energy") or 0) < AMBUSH_MIN_ENERGY or not self._hunting(obs, enemies[0]):
+            if not hold and (arc is None or len(enemies) != 1 or (me.get("energy") or 0) < AMBUSH_MIN_ENERGY):
                 return None
-            hunter = enemies[0]
+            if hold and len(enemies) > HOLD_MAX_ENEMIES:
+                return None
+            hunter = next((m for m in enemies if self._hunting(obs, m)), None)
+            if hunter is None:
+                return None
             spot = self._plan_ambush(obs, hunter)
             if spot is None:
                 self.ambush_cool = t + AMBUSH_RETRY_S

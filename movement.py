@@ -121,7 +121,7 @@ class MovementMixin:
                 goal, speed, boost, mode = cube, 1.0, False, "cube"
             elif target is not None and math.dist(target["pos"], me["pos"]) <= self._reach(me):
                 s = None
-                ap = self.approach_goal(obs, target) if features.NO_CHIP else None  # v9 I (nochip.py)
+                ap = self.approach_goal(obs, target) if (features.NO_CHIP or features.AGGRO_CLOSE) else None  # v9 I / B2
                 if ap is not None:
                     goal, speed, boost, mode = ap, 1.0, False, "approach"
                 elif features.DUEL and self.duel_on(enemies, target):  # v9 (duel.py)

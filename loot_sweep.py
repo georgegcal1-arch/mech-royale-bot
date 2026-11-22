@@ -20,6 +20,8 @@ heard. So, with no enemy mech within SWEEP_SAFE_M:
 """
 import math
 
+import features
+
 from safety import EDGE_MARGIN_M, SPARE_S
 
 SWEEP_M = 40.0
@@ -41,7 +43,7 @@ WANT_BONUS_M = 25.0         # a laser or lightning when we hold neither counts t
 def would_take(kind, weapons):
     """loot.py's _take_loot_lightning rules: would we take a pickup of this kind holding `weapons`?"""
     slot = {w["kind"] for w in weapons if w}
-    if kind not in TAKE_ORDER or kind in slot:
+    if kind not in TAKE_ORDER or kind in slot or (kind == "mortar" and features.NO_MORTAR):
         return False
     if None in weapons:
         return True

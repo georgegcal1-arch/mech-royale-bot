@@ -36,8 +36,30 @@ TORSO_FRAC = 0.7          # ...at this fraction of our height
 COVER_W, CANOPY_W, GAIN_W, TRAVEL_W = 3.0, 1.0, 0.02, 0.01
 
 
+HEAL_QUIET_FRAC = 0.80    # v9 B4 (features.HEAL_QUIET): quiet below this fraction of max HP...
+HEAL_QUIET_HIT_S = 3.0    # ...unless a mech hit us this recently
+HEAL_QUIET_NEAR_M = 45.0  # ...or one is this close
+HEAL_QUIET_ENEMY = 100    # ids below this are mechs (protocol.md)
+
+
 class HealMixin:
     """Uses self.healing, self.hide, self.hits, self.world, _edge (safety.py) and the perception methods."""
+
+    def heal_quiet(self, obs, enemies):
+        """v9 B4: hold fire so regen's 5 s timer runs (protocol.md section 7: regen needs 5 s without dealing or
+        taking damage)? Below HEAL_QUIET_FRAC of max HP, with no mech engaging us (none hit us in HEAL_QUIET_HIT_S,
+        none aimed at us in its weapon's reach (squad.py's engagers), none within HEAL_QUIET_NEAR_M)."""
+        if not features.HEAL_QUIET:
+            return False
+        me, t = obs["self"], obs["t"]
+        if _hp(me) >= HEAL_QUIET_FRAC * (me.get("max_hp") or 1400.0):
+            return False
+        if any(t - ht <= HEAL_QUIET_HIT_S and isinstance(by, int) and 0 <= by < HEAL_QUIET_ENEMY
+               for ht, by, _, _ in self.hits):
+            return False
+        if any(math.dist(m["pos"], me["pos"]) <= HEAL_QUIET_NEAR_M for m in enemies):
+            return False
+        return not self.engagers(obs, enemies)
 
     def heal_state(self, obs):
         """Should this decision disengage? Updates self.healing (always False with features.HEAL off)."""
