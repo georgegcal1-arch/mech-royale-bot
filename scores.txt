@@ -11,3 +11,4 @@ expA = 3.21  # v9 exp A: DUEL on, v6 base (commit 3b7c5ac "exp A: duel on"); +0.
 expF = 3.46  # v9 exp F: DUEL + LIGHTNING (commit 21dbb8f "exp F: duel + lightning"); +0.25 over 3.21 -> counts: kept on, new bar 3.46
 expC = 3.46  # v9 exp C: DUEL + LIGHTNING + LEARN_DODGE (commit 6dc2b3e "exp C: duel + lightning + learn_dodge"); +0.00 over 3.46 -> no gain: LEARN_DODGE off, bar stays 3.46
 expG = 3.23  # v9 exp G: DUEL + LIGHTNING + LOOKAHEAD (commit 5ea055b "exp G: duel + lightning + lookahead"); -0.23 vs 3.46 -> loser: LOOKAHEAD off, bar stays 3.46
+expHI = 3.52  # v9 exp HI: DUEL + LIGHTNING + LASER_GUARD + NO_CHIP (commit 663cf6f "exp HI: duel + lightning + laser discipline"); +0.06 vs 3.46 (under +0.15) -> kept as new best by the user's call, bar 3.52

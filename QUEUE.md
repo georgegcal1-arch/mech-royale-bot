@@ -2,11 +2,12 @@
 
 Read this first after a /clear: it holds the rules, the order, where the code lives and what to do next.
 
-## Rules (since exp F scored 3.46)
+## Rules (since exp HI scored 3.52)
 - **Stacked:** each experiment (or bundle of switches) is turned on *on top of the current best setup*, which keeps all winners on.
   Only the experiment under test changes between two submissions.
 - **Bar:** the current best score. A step counts as a winner only if it beats the bar by **0.15+**
-  (noise). Now: best = **3.46** (DUEL + LIGHTNING), so a step must score **3.61 or more**.
+  (noise). Now: best = **3.52** (DUEL + LIGHTNING + LASER_GUARD + NO_CHIP), so a step must score **3.67 or more**.
+  (HI was +0.06 over 3.46, under the 0.15 rule; kept as the new best by the user's call.)
 - **Winner:** it stays on, and its score becomes the new bar. **Loser:** it is turned off again before
   the next step, so the next step stacks on the unchanged best.
 - **End:** `main` is left on the best-scoring setup.
@@ -28,7 +29,8 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | F | lightning (`LIGHTNING`) | DUEL + LIGHTNING | 21dbb8f | **3.46** | +0.25 vs 3.21 | **winner: kept on** |
 | C | learn_dodge (`LEARN_DODGE`) | DUEL + LIGHTNING + LEARN_DODGE | 6dc2b3e | **3.46** | +0.00 vs 3.46 | loser: turned off |
 | G | lookahead (`LOOKAHEAD`) | DUEL + LIGHTNING + LOOKAHEAD | 5ea055b | **3.23** | -0.23 vs 3.46 | loser: turned off |
-| HI | laser discipline (`LASER_GUARD` + `NO_CHIP`) | DUEL + LIGHTNING + LASER_GUARD + NO_CHIP | (exp HI commit) | | needs 3.61 | |
+| HI | laser discipline (`LASER_GUARD` + `NO_CHIP`) | DUEL + LIGHTNING + LASER_GUARD + NO_CHIP | 663cf6f | **3.52** | +0.06 vs 3.46 | **kept as best (user's call; under +0.15)** |
+| N | npc_aware (`NPC_AWARE`) | best + NPC_AWARE | (exp N commit) | | needs 3.67 | |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
@@ -57,4 +59,8 @@ already is the combination of the winners.
 - All v9 switches are listed in `features.V9_SWITCHES`. `conftest.v9_off` and `replay.py --v6` turn them all
   off for the v6 golden comparisons, so those stay valid whatever the defaults are.
 
-Status: **HI ready to submit** (DUEL + LIGHTNING + LASER_GUARD + NO_CHIP).
+- Branch `v9-n` (pushed): N `NPC_AWARE` (npc.py) plus the arena tools (`tools/play.py`, `record.py`, `analyze.py`).
+  Arena: baseline VGYDJ 14th (a drone did 838 dmg); with N MNUCG 1st, AGTRR 3rd, but no drone came near us, so
+  N went untested there. **Status: merged for step N.**
+
+Status: **N ready to submit** (DUEL + LIGHTNING + LASER_GUARD + NO_CHIP + NPC_AWARE).
