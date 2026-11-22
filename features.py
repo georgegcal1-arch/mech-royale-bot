@@ -93,9 +93,9 @@ LOOT_SWEEP = True  # winner: exp L 3.92 (with R, QUEUE.md)
 UPGRADES_OFFENSE = False  # bracket B1 3.81: below 3.92, off (QUEUE.md)
 AGGRO_CLOSE = True  # winner: bracket B2 4.50 (QUEUE.md)
 AGGRO_HOLD = False  # bracket B3: skipped (the opposite of the winner B2)
-HEAL_QUIET = True  # bracket B4 under test, on top of L + B5 + B2 (QUEUE.md)
+HEAL_QUIET = True  # bracket B4: 4.54, kept on (QUEUE.md)
 NO_MORTAR = True  # kept: bracket B5 4.06 (QUEUE.md)
-AGGRO_RUSH = False  # bracket B2b (after B4's score)
+AGGRO_RUSH = True  # bracket B2b under test, on top of L + B5 + B2 + B4 (QUEUE.md)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
                "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",
