@@ -91,8 +91,11 @@ def play_report(msgs, p):
         modes = collections.Counter(lab.split(" ")[0] for lab in labels if lab)
         p("  modes: " + ", ".join(f"{k} {v}" for k, v in modes.most_common(12)))
         tags = {"npc self-defense": " npc ", "npc farm": " farm ", "npc avoid": "/npc ", "laser short": " short ",
-                "crate": " crate "}
+                "crate": " crate ", "unstick jet": "unstick/jet ", "unstick over": "unstick/over ",
+                "unstick slide": "unstick/slide "}
         p("  triggers: " + ", ".join(f"{k} {sum(t in lab + ' ' for lab in labels)}" for k, t in tags.items()))
+
+    movement_report(obs, msgs, p)
 
     # answer times
     rx = {m["tick"]: m["_rx"] for m in obs if "_rx" in m}
@@ -103,6 +106,49 @@ def play_report(msgs, p):
         p(f"  answers: {len(lat)} for {len(obs)} obs; obs->action ms p50 {lat[len(lat) // 2]:.1f}, "
           f"p99 {lat[int(.99 * (len(lat) - 1))]:.1f}, max {lat[-1]:.1f}; over 50 ms: {sum(x > 50 for x in lat)}")
     return me
+
+
+STUCK_MIN_S, STUCK_MAX_DISP_M, CRAWL_MPS = 1.5, 2.0, 3.0
+
+
+def movement_report(obs, msgs, p):
+    """Time stuck (legs asking to move, < 2 m in 1.5 s+), time crawling (a full-speed command, < 3 m/s, not
+    charging a laser), and zone damage with its stretches."""
+    moves = {s["action"]["tick"]: s["action"].get("move") or [0, 0] for s in msgs if s.get("type") == "sent"}
+    if not moves:
+        return
+    stuck, i = [], 0
+    while i < len(obs):
+        if math.hypot(*moves.get(obs[i]["tick"], [0, 0])) < 0.5:
+            i += 1
+            continue
+        p0, j = obs[i]["self"]["pos"], i
+        while (j + 1 < len(obs) and math.hypot(*moves.get(obs[j + 1]["tick"], [0, 0])) >= 0.5
+               and math.dist(obs[j + 1]["self"]["pos"][:2], p0[:2]) < STUCK_MAX_DISP_M):
+            j += 1
+        if obs[j]["t"] - obs[i]["t"] >= STUCK_MIN_S:
+            stuck.append((obs[i]["t"], obs[j]["t"] - obs[i]["t"], [round(v) for v in p0]))
+        i = j + 1
+    crawl = 0.0
+    for a, b in zip(obs, obs[1:]):
+        if math.hypot(*moves.get(a["tick"], [0, 0])) < 0.9:
+            continue
+        lw = next((w for w in a["self"]["weapons"] if w and w["kind"] == "laser"), None)
+        if lw and (lw.get("charge") or 0) > 0:
+            continue
+        dt = b["t"] - a["t"]
+        if dt > 0 and math.dist(a["self"]["pos"][:2], b["self"]["pos"][:2]) / dt < CRAWL_MPS:
+            crawl += min(dt, 0.5)
+    alive = max(obs[-1]["t"], 1e-6)
+    zone = [(o["t"], e["amount"]) for o in obs for e in o["events"] if e["type"] == "damaged" and e.get("weapon") == "zone"]
+    p(f"  movement: stuck {sum(s[1] for s in stuck):.1f} s in {len(stuck)} stretches "
+      f"({100 * sum(s[1] for s in stuck) / alive:.0f}% of time alive), crawling {crawl:.1f} s ({100 * crawl / alive:.0f}%)")
+    for t, d, pos in stuck:
+        p(f"    stuck t={t:.1f} for {d:.1f} s at {pos}")
+    if zone:
+        p(f"  zone damage: {sum(a for _, a in zone):.0f} from t={zone[0][0]:.1f} to {zone[-1][0]:.1f} s")
+    else:
+        p("  zone damage: none")
 
 
 class _Out:

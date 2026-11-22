@@ -44,6 +44,9 @@ v9 experiments (all off by default = v6 exactly; QUEUE.md turns them on one at a
   NPC_AWARE    N: a drone within 50 m that hit us in the last 2.5 s becomes the target (lightning if held) unless
                a mech is within 40 m; while fighting a mech the legs turn away from drones' aggro range; when
                quiet (economy's rule) and at half HP or more, farm drones within 60 m (npc.py).
+  STUCK_ESCAPE the legs ask for 0.5+ of full speed for 0.5 s (not a fight's circling) but we moved < 1 m:
+               jump + jet over the wall ahead if its top is within climb range (1.6 energy/m), else slide along
+               it toward the side where it ends sooner; a repeat at the same spot tries the other way (stuck.py).
 """
 STRAFE = True
 DODGE = True
@@ -64,8 +67,9 @@ LASER_GUARD = True  # kept: exp HI 3.52 (laser discipline, with NO_CHIP; QUEUE.m
 NO_CHIP = True  # kept: exp HI 3.52 (QUEUE.md)
 AMBUSH = False  # exp J (next, on top of whatever wins)
 NPC_AWARE = True  # exp N under test, on top of HI (QUEUE.md)
+STUCK_ESCAPE = False  # navigation step 1 (arena-tested first)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
-               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE")
+               "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE")
 
 # HEAL tuning
 HEAL_ENTER_FRAC = 0.30  # disengage below this fraction of max HP...

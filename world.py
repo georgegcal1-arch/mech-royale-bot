@@ -204,6 +204,15 @@ class World:
                 return True
         return False
 
+    def tops_at(self, x, y):
+        """[(base, top)] of every prism whose footprint holds (x, y) (v9 STUCK_ESCAPE: what to jet over)."""
+        out = []
+        for idx in self.cells.get((math.floor(x / CELL_M), math.floor(y / CELL_M)), ()):
+            minx, miny, maxx, maxy, base, top, edges = self.prisms[idx]
+            if minx <= x <= maxx and miny <= y <= maxy and self._inside(x, y, edges):
+                out.append((base, top))
+        return out
+
     def solid_at(self, x, y, z):
         """True if (x, y, z) is inside a prism."""
         for idx in self.cells.get((math.floor(x / CELL_M), math.floor(y / CELL_M)), ()):
