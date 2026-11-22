@@ -122,6 +122,15 @@ def test_b4_holds_fire_while_hurt_and_unengaged(bot):
     assert _settle(bot, obs, *BEST)["fire"][0] is True, "off: it shoots"
 
 
+def test_b4_never_in_the_final_zone(bot):
+    obs = _hurt(bot)
+    x, y, _ = obs["self"]["pos"]
+    obs["zone"].update(center=[x, y], radius=features.HEAL_FINAL_R, next_center=[x, y], next_radius=25.0,
+                       shrink_start=obs["t"] + 30, shrink_end=obs["t"] + 55)
+    with switches(*BEST, "HEAL_QUIET"):
+        assert bot.heal_quiet(obs, obs["mechs"]) is False, "the last phases: fight"
+
+
 @pytest.mark.parametrize("case", ["healthy", "hit", "aimed", "close"])
 def test_b4_fights_when_engaged_or_healthy(bot, case):
     obs = _hurt(bot, 0.9 if case == "healthy" else 0.5)
