@@ -114,7 +114,7 @@ LASER_COUNTER = True  # winner: step LC 4.69 under builders-4 (B2b 4.36) (QUEUE.
 AGGRO_CLOSER = False  # bracket B2c 4.59: below the 4.69 bar (LC), off (QUEUE.md)
 THREAT_TARGET = False  # F1: next step, on top of LC (B2c off) (QUEUE.md)
 MULTI_GUARD = False  # F2: after F1, on top of the best (QUEUE.md)
-DROP_CAPTURE = False  # branch v9-drops: arena first (QUEUE.md)
+DROP_CAPTURE = True  # final submission: on top of LC (QUEUE.md)
 EARLY_ARM = False  # branch v9-drops: arena first (QUEUE.md)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
