@@ -8,6 +8,7 @@ import math
 from hypothesis import assume, given
 
 import bot as B
+import features
 from conftest import HELLO, base_obs, new_bot, reset, respond, v9_off, yaw_diff
 from strategies import game_observations
 
@@ -83,7 +84,9 @@ def test_low_hp_mech_behind_a_building_is_skipped(bot):
     assert _target_id(action) == 3
 
 
-def test_mechs_beat_an_attacking_npc(bot):
+def test_mechs_beat_an_attacking_npc(bot, monkeypatch):
+    # v5's rule; v9 NPC_AWARE turns it around (a drone hitting us within 50 m first: tests/test_v9n.py)
+    monkeypatch.setattr(features, "NPC_AWARE", False)
     obs = _sky(base_obs(100))
     obs["mechs"] = [_mech(obs, 104, 20, 0, kind="npc", hp=50), _mech(obs, 3, 0, 80)]
     obs["events"] = [_hit(104)]
