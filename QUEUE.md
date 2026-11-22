@@ -2,12 +2,11 @@
 
 Read this first after a /clear: it holds the rules, the order, where the code lives and what to do next.
 
-## Rules (since bracket B5 scored 4.06)
+## Rules (since bracket B2 scored 4.50)
 - **Stacked:** each experiment (or bundle of switches) is turned on *on top of the current best setup*, which keeps all winners on.
   Only the experiment under test changes between two submissions.
 - **Bar:** the current best score. A step counts as a winner only if it beats the bar by **0.15+**
-  (noise). Now: best = **4.06** (L + B5), so a step must score **4.21 or more**. (B5 was +0.14, kept as best by the
-  user's call: a clear mechanism.)
+  (noise). Now: best = **4.50** (L + B5 + B2), so a step must score **4.65 or more**.
   (HI was +0.06 over 3.46, under the 0.15 rule; kept as the new best by the user's call.)
 - **Winner:** it stays on, and its score becomes the new bar. **Loser:** it is turned off again before
   the next step, so the next step stacks on the unchanged best.
@@ -37,9 +36,10 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | L | loot sweep (`LOOT_SWEEP`) | R + LOOT_SWEEP | a6ce0db | **3.92** | +0.36 vs 3.56 | **winner: kept on** (R's own score was not reported, so R + L count together) |
 | B1 | upgrades offense first (`UPGRADES_OFFENSE`) | L + B1 | baea551 | **3.81** | -0.11 vs 3.92 | loser: turned off (defensive upgrades kept) |
 | B5 | never carry a mortar (`NO_MORTAR`: cook-off +60%) | L + B5 | ef170cc | **4.06** | +0.14 vs 3.92 | **kept as best** (user's call: clear mechanism) |
-| B2 | aggression close (`AGGRO_CLOSE`) | L + B5 + B2 | (exp B2 commit, see git log) | | needs 4.21 | |
-| B3 | aggression hold (`AGGRO_HOLD`) | best + B3 | | | | |
-| B4 | heal between fights (`HEAL_QUIET`) | best + B4 | | | | |
+| B2 | aggression close (`AGGRO_CLOSE`) | L + B5 + B2 | 7bbfc8d | **4.50** | +0.44 vs 4.06 | **winner: kept on** |
+| B3 | aggression hold (`AGGRO_HOLD`) | - | - | - | - | skipped (the opposite of the winner B2) |
+| B4 | heal between fights (`HEAL_QUIET`) | L + B5 + B2 + B4 | (exp B4 commit, see git log) | | needs 4.65 | |
+| B2b | even closer (`AGGRO_RUSH`: close on the nearest hunter once seen, boost, under 35 m, lightning pickups first) | best + B2b | | | | after B4 |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
@@ -72,5 +72,5 @@ already is the combination of the winners.
   Arena: baseline VGYDJ 14th (a drone did 838 dmg); with N MNUCG 1st, AGTRR 3rd, but no drone came near us, so
   N went untested there. **Status: merged for step N.**
 
-Status: **B2 ready to submit** (L + B5 + AGGRO_CLOSE). Next after its score: B3, B4. LASER_COUNTER is on branch
-`v9-laser` (WIP, off): replays hide 3/9 seen-coming laser hits vs 1/9.
+Status: **B4 ready to submit** (L + B5 + B2 + HEAL_QUIET). Next after its score: B2b. LASER_COUNTER (branch `v9-laser`,
+off) is being re-aimed at the winner: close in during the laser's cooldown window, cover only while it is ready.

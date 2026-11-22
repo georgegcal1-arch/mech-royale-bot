@@ -52,6 +52,8 @@ class HealMixin:
         if not features.HEAL_QUIET:
             return False
         me, t = obs["self"], obs["t"]
+        if zone_at(obs["zone"], t)[2] <= features.HEAL_FINAL_R:
+            return False  # the last phases (as v7's heal): no time to regen, the fight decides the place
         if _hp(me) >= HEAL_QUIET_FRAC * (me.get("max_hp") or 1400.0):
             return False
         if any(t - ht <= HEAL_QUIET_HIT_S and isinstance(by, int) and 0 <= by < HEAL_QUIET_ENEMY

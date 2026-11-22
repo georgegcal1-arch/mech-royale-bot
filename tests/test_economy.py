@@ -90,7 +90,9 @@ def test_offer_answered_in_the_decision_that_sees_it(shared_bot):
 
 
 # --- crates --------------------------------------------------------------------------------
-def test_shoots_a_clear_crate_inside_the_next_circle():
+def test_shoots_a_clear_crate_inside_the_next_circle(monkeypatch):
+    # the recorded observation is at ~995 HP (< 80%): v9 B4 (HEAL_QUIET) would hold fire, crates too
+    monkeypatch.setattr(features, "HEAL_QUIET", False)
     bot = new_bot()
     o = _quiet_obs(bot)
     pos = _place(bot, o, 50.0)
