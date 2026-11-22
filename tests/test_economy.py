@@ -70,11 +70,13 @@ def _settle(bot, o, n=3):
     (("sensors", "gun_rate", "gyros"), 0),
     (("nanites", "plating"), 1),
 ])
-def test_upgrade_preference(ids, want):
+def test_upgrade_preference(ids, want, monkeypatch):
+    monkeypatch.setattr(features, "UPGRADES_OFFENSE", False)  # v6's order; v9 B1: tests/test_brackets.py
     assert pick_upgrade(_offer(*ids)) == want
 
 
 def test_upgrade_economy_off_is_v5(monkeypatch):
+    monkeypatch.setattr(features, "UPGRADES_OFFENSE", False)
     monkeypatch.setattr(features, "ECONOMY", False)
     assert pick_upgrade(_offer("gun_rate", "plating", "armor")) == 2
     assert pick_upgrade(_offer("plating", "nanites", "sensors")) == 0

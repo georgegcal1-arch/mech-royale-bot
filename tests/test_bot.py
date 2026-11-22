@@ -201,13 +201,14 @@ class Housekeeping(unittest.TestCase):
         self.assertIsNone(take(("mortar", [1, 0, 200]), weapons=[gun(), laser]), "no empty slot")
 
     def test_picks_armor(self):
+        was, features.UPGRADES_OFFENSE = features.UPGRADES_OFFENSE, False  # v6's order (v9 B1: test_brackets.py)
+        self.addCleanup(setattr, features, "UPGRADES_OFFENSE", was)
         b = B.Bot(hello())
         ch = lambda *ids: {"id": 1, "expires": 15, "choices": [{"id": i, "name": i, "desc": ""} for i in ids]}
         self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "armor")))["pick"], 2)
         # v6 (features.ECONOMY): plating > armor > nanites; v5 took choice 0 here
         self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "plating")))["pick"], 2)
         self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "gyros")))["pick"], 0)
-        import features
         was, features.ECONOMY = features.ECONOMY, False
         try:
             self.assertEqual(b.act(obs(offer=ch("gun_rate", "sensors", "plating")))["pick"], 0)
