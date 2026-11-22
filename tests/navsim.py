@@ -31,17 +31,37 @@ class NavSim:
                 s = top
         return s
 
-    def blocked(self, x, y, z):
+    def overlap(self, x, y, z):
+        """The angles (of 8 around the body, at knee, chest or head height) that are inside something solid."""
         r, h, step = self.c["radius"], self.c["height"], self.c["step_up"]
+        out = set()
         for k in range(8):
             a = k * math.pi / 4
             px, py = x + r * math.cos(a), y + r * math.sin(a)
-            for hz in (z + step + 0.1, z + 0.5 * h, z + h - 0.1):
-                if self.w.solid_at(px, py, hz):
-                    return True
-            if self.w.ground(px, py) > z + step:
-                return True
-        return False
+            if any(self.w.solid_at(px, py, hz) for hz in (z + step + 0.1, z + 0.5 * h, z + h - 0.1)):
+                out.add(k)
+        return out
+
+    def too_steep(self, x, y):
+        """Terrain at (x, y) rises from under us faster than the 50 degree slope rule allows (and more than a
+        step): a wall of terrain (protocol.md section 7: slopes steeper than max_slope_deg can't be walked)."""
+        d = math.hypot(x - self.x, y - self.y)
+        rise = self.w.ground(x, y) - self.z
+        return rise > self.c["step_up"] and (d < 1e-6 or rise / max(d, 0.5) > math.tan(math.radians(self.c["max_slope_deg"])))
+
+    def blocked(self, x, y, z):
+        """A move is blocked if the body would touch something, unless it touches nothing new and heads away
+        from what it already touches (stepping off a wall we are pressed against is allowed, as on the server)."""
+        if self.grounded and self.too_steep(x, y):
+            return True
+        new = self.overlap(x, y, z)
+        if not new:
+            return False
+        cur = self.overlap(self.x, self.y, z)
+        if not new <= cur:
+            return True
+        mx, my = x - self.x, y - self.y
+        return any(mx * math.cos(k * math.pi / 4) + my * math.sin(k * math.pi / 4) > 0 for k in new)
 
     # ---------------------------------------------------------------- one decision
     def step(self, action, n_ticks=2):
