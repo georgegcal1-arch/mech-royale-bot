@@ -16,6 +16,8 @@ v9 (features.DUEL / LEAD_AIM / LEARN_DODGE / SQUAD_AVOID; QUEUE.md turns them on
                else slide along it toward its nearer end (stuck.py); the last word on the legs.
   NAV_ROUTE    walking goals (the zone spot, cubes, crates, the laser fetch, I's approach) follow A* routes on the
                precomputed ground grid (nav.py, nav/ground.nav.gz from tools/navgrid.py).
+  LOOT_SWEEP   L: no enemy within 40 m: walk (routed) to cubes and better weapons within 40 m, death piles first;
+               abort on 2+ attackers or a laser charging at us (loot_sweep.py).
   Legs: zone hurry > dodge > hide > squad > laser fetch > cube > (I) approach > duel > strafe > zone walk;
   then LOOKAHEAD may replace the result, then (J) the ambush, then (H) the laser guard's cover (none of them
   in zone hurry).
@@ -77,7 +79,7 @@ Layout (behavior identical to the single-file v5):
   loot.py       taking weapons in reach, the early laser fetch
   economy.py    v6: crates and cubes when quiet
   heal.py       v7: disengage at low HP so regen can start (state, threats, hide spot)
-  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py, npc.py, stuck.py, nav.py
+  duel.py, lead.py, learn_dodge.py, squad.py, lookahead.py, guard.py, nochip.py, ambush.py, npc.py, stuck.py, nav.py, loot_sweep.py
                 v9 experiments (LIGHTNING: loot/combat/economy)
   features.py   on/off switches for the v5/v6/v7 features and the v9 experiments (defaults = v6)
 """
@@ -109,12 +111,13 @@ from ambush import AmbushMixin
 from npc import NPC_AVOID_MODES, NpcMixin
 from stuck import StuckMixin, new_history
 from nav import NavGrid, NavMixin
+from loot_sweep import LootSweepMixin
 from targeting import FACE_S, FINISH_FRAC, HIT_RECENT_S, MAX_CANDIDATES, STICKY_HP, TargetingMixin  # noqa: F401
 
 
 class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMixin, LootMixin, EconomyMixin,
           HealMixin, DuelMixin, LeadMixin, LearnDodgeMixin, SquadMixin, LookaheadMixin,
-          LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin, StuckMixin, NavMixin):
+          LaserGuardMixin, NoChipMixin, AmbushMixin, NpcMixin, StuckMixin, NavMixin, LootSweepMixin):
     name = "mech-royale-bot v9"
 
     def __init__(self, hello: mf.Hello):
@@ -159,6 +162,7 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
         self.ambush, self.ambush_cool = None, 0.0  # v9 AMBUSH
         self.stuck_hist, self.escape, self.last_stuck = new_history(), None, None  # v9 STUCK_ESCAPE
         self.nav, self.navgrid, self.nav_tick = None, None, None  # v9 NAV_ROUTE: the ground grid (nav.py)
+        self.last_pos, self.kill_spots, self.sweep_cool = {}, [], 0.0  # v9 LOOT_SWEEP
         if self.world is not None:
             try:
                 self.navgrid = NavGrid.load(hello["map"]["dir"])
@@ -214,7 +218,15 @@ class Bot(SafetyMixin, PerceptionMixin, TargetingMixin, CombatMixin, MovementMix
 
         farm = self.npc_farm(obs) if features.NPC_AWARE and quiet else None  # v9 N: drones for cubes
         cube = (farm[1] if farm is not None else self.cube_goal(obs)) if quiet else None
+        sweep = None
+        if features.LOOT_SWEEP:  # v9 L (loot_sweep.py): cubes / better weapons nearby, death piles first
+            self.note_kills(obs)
+            sweep = self.sweep_goal(obs, enemies)
+            if sweep is not None:
+                cube = sweep
         move, yaw, boost, goal, legs, mode = self.legs(obs, enemies, target, cube)
+        if sweep is not None and mode == "cube":
+            mode = "loot"
         if (features.NPC_AWARE and target is not None and target.get("kind") == "mech"
                 and mode in NPC_AVOID_MODES):  # v9 N: fighting a mech, stay out of drones' aggro range
             turned = self.npc_avoid(obs, move, self.npc_aggro_m)
