@@ -7,8 +7,9 @@ nav/ground.nav.gz) instead of straight lines into buildings.
   Goal: a walking goal (the zone spot first; cubes, crates, the laser fetch and I's approach too) further than
     NAV_DIRECT_M, or without a straight grid walk to it, gets a route. Its cell is snapped to the nearest
     walkable one within NAV_SNAP_CELLS.
-  Plan: weighted A* (octile heuristic x NAV_WEIGHT) with a time budget of NAV_BUDGET_MS per decision, resumed on
-    the next decision (meanwhile we keep walking straight), given up after NAV_MAX_EXPANSIONS. Re-planned when
+  Plan: weighted A* (octile heuristic x NAV_WEIGHT), NAV_EXPANSIONS_PER_DECISION nodes per decision (a count, so a
+    replay is deterministic; NAV_BUDGET_MS caps the time on a slow machine), resumed on the next decision
+    (meanwhile we keep walking straight), given up after NAV_MAX_EXPANSIONS. Re-planned when
     the goal moves NAV_REGOAL_M, when we stray NAV_OFF_PATH_M from the path, or when STUCK_ESCAPE fires.
   Follow: walk to the farthest path cell within NAV_LOOK_CELLS ahead that a straight grid walk reaches.
 """
@@ -24,7 +25,8 @@ NAV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nav", "grou
 NAV_DIRECT_M = 12.0
 NAV_SNAP_CELLS = 8
 NAV_WEIGHT = 1.5
-NAV_BUDGET_MS = 2.0
+NAV_EXPANSIONS_PER_DECISION = 300  # ~2 ms here; a count, so replays are deterministic
+NAV_BUDGET_MS = 4.0                # safety cap only (a slow machine): then planning just resumes later
 NAV_MAX_EXPANSIONS = 60000
 NAV_REGOAL_M = 12.0
 NAV_OFF_PATH_M = 8.0
@@ -130,8 +132,9 @@ class AStar:
         dx, dy = abs(x - self.goal[0]), abs(y - self.goal[1])
         return NAV_WEIGHT * (max(dx, dy) + (SQRT2 - 1.0) * min(dx, dy))
 
-    def run(self, deadline):
-        """Expand until done or past `deadline` (perf_counter). True when finished (path or failed)."""
+    def run(self, deadline, budget=NAV_EXPANSIONS_PER_DECISION):
+        """Expand up to `budget` nodes (or until `deadline`, perf_counter, a safety cap). True when finished
+        (path or failed)."""
         grid, masks, nx = self.g, self.g.masks, self.g.nx
         cost, parent, open_, steps, gi = self.cost, self.parent, self.open, self.g.steps, self.gi
         push, pop = heapq.heappush, heapq.heappop
@@ -159,7 +162,7 @@ class AStar:
             if self.expanded >= NAV_MAX_EXPANSIONS:
                 self.failed = True
                 return True
-            if n & 63 == 0 and time.perf_counter() > deadline:
+            if n >= budget or (n & 63 == 0 and time.perf_counter() > deadline):
                 return False
         self.failed = True
         return True

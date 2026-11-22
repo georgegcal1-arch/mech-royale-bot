@@ -356,7 +356,12 @@ def test_outside_the_zone_always_runs_back(obs):
     nx, ny = obs["zone"]["next_center"]
     assume(not me["in_zone"] and math.hypot(nx - me["pos"][0], ny - me["pos"][1]) > 1.0)
     reset(PROP_BOT)
-    action, _ = respond(PROP_BOT, obs)
+    was = features.NAV_ROUTE  # v4's straight line; with v9 NAV_ROUTE the route may go round a building
+    features.NAV_ROUTE = False  # (tests/test_nav.py: outside the zone with routes still runs back, boosting)
+    try:
+        action, _ = respond(PROP_BOT, obs)
+    finally:
+        features.NAV_ROUTE = was
     want = math.atan2(ny - me["pos"][1], nx - me["pos"][0])
     assert yaw_diff(_move_yaw(action), want) < math.radians(15)
     assert math.hypot(*action["move"]) > 0.95 and action.get("boost") is True

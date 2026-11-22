@@ -33,7 +33,7 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | HI | laser discipline (`LASER_GUARD` + `NO_CHIP`) | DUEL + LIGHTNING + LASER_GUARD + NO_CHIP | 663cf6f | **3.52** | +0.06 vs 3.46 | **kept as best (user's call; under +0.15)** |
 | N | npc_aware (`NPC_AWARE`) | HI + NPC_AWARE | 535f7fc | **3.52** | +0.00 vs 3.52 | no effect yet: **kept on** (user's call: harmless, should matter once navigation lets us roam) |
 | S | stuck escape (`STUCK_ESCAPE`, navigation step 1) | N + STUCK_ESCAPE | 4fead84 | **3.56** | +0.04 vs 3.52 | **kept as best** (user's call; under +0.15); arena MAZAE 1st / 5 kills, the escape never triggered |
-| R | routes (`NAV_ROUTE`, navigation step 2, ground layer) | S + NAV_ROUTE | | | needs 3.71 | arena-tested first (branch `v9-nav`) |
+| R | routes (`NAV_ROUTE`, navigation step 2, ground layer) | S + NAV_ROUTE (+ H's cover checks 32 -> 20) | (exp R commit) | | needs 3.71 | arena PGBKZ 1st / MUWWU 8th: 0 / 1.5 s stuck, 1 / 3% crawling, no zone damage, 251 / 76 route decisions |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
@@ -66,4 +66,4 @@ already is the combination of the winners.
   Arena: baseline VGYDJ 14th (a drone did 838 dmg); with N MNUCG 1st, AGTRR 3rd, but no drone came near us, so
   N went untested there. **Status: merged for step N.**
 
-Status: S scored 3.56 (kept on, new best). Next: R, navigation step 2 (`NAV_ROUTE`, branch `v9-nav`), after 2 arena matches.
+Status: **R ready to submit** (S + NAV_ROUTE: DUEL + LIGHTNING + LASER_GUARD + NO_CHIP + NPC_AWARE + STUCK_ESCAPE + NAV_ROUTE).

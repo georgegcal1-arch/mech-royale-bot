@@ -8,9 +8,11 @@ import random
 import time
 
 import pytest
+from hypothesis import assume, given
 
 import nav as N
-from conftest import ARENA, DECISION_BUDGET_MS, new_bot, respond
+from conftest import ARENA, DECISION_BUDGET_MS, new_bot, reset, respond
+from strategies import game_observations
 from navsim import NavSim
 from test_stuck import MECH, SPOTS, _obs
 from test_v9 import _mode, switches
@@ -108,6 +110,36 @@ def test_without_routes_it_stays_stuck(name, xy, nc, nr, edge_in, limit):
     assert not ok and math.hypot(end[0] - xy[0], end[1] - xy[1]) < 5.0, f"{name}: the control moved to {end}"
 
 
+PROP_BOT = new_bot()
+
+
+@given(game_observations)
+def test_outside_the_zone_with_routes_still_runs_back_boosting(obs):
+    """v4's rule with routes on: full speed and boost back to the zone (the direction is the route's)."""
+    me = obs["self"]
+    nx, ny = obs["zone"]["next_center"]
+    assume(not me["in_zone"] and math.hypot(nx - me["pos"][0], ny - me["pos"][1]) > 1.0)
+    reset(PROP_BOT)
+    with switches(*BASE, "STUCK_ESCAPE", "NAV_ROUTE"):
+        action, _ = respond(PROP_BOT, obs)
+    assert math.hypot(*action["move"]) > 0.95 and action.get("boost") is True
+    assert PROP_BOT.fallbacks == 0
+
+
+def test_routes_are_deterministic():
+    """Planning is budgeted by expansions (time is only a safety cap), so the same match replays the same."""
+    def run():
+        bot = new_bot()
+        obs = _obs(bot, SPOTS[2][1], SPOTS[2][2], SPOTS[2][3], SPOTS[2][4])
+        out = []
+        for _ in range(20):
+            bot.decision_t0 = time.perf_counter()
+            out.append(bot.nav_waypoint(obs, (154.0, 64.0)))
+            obs["t"] += 0.1
+        return out
+    assert run() == run()
+
+
 def test_no_grid_means_straight_lines():
     bot = new_bot()
     bot.navgrid = None
@@ -125,7 +157,7 @@ def test_a_plan_is_spread_over_decisions_within_the_budget():
         t0 = time.perf_counter()
         bot.nav_waypoint(obs, goal)
         dt = time.perf_counter() - t0
-        assert dt * 1000 < N.NAV_BUDGET_MS + 2.0, f"{dt * 1000:.2f} ms in one decision"
+        assert dt * 1000 < 3.5, f"{dt * 1000:.2f} ms in one decision ({N.NAV_EXPANSIONS_PER_DECISION} expansions)"
         slices += 1
         if bot.nav and (bot.nav.get("path") or bot.nav.get("straight") or bot.nav.get("search") is None):
             break

@@ -71,7 +71,7 @@ NO_CHIP = True  # kept: exp HI 3.52 (QUEUE.md)
 AMBUSH = False  # exp J (next, on top of whatever wins)
 NPC_AWARE = True  # kept: exp N 3.52 (no effect yet; on by the user's call, QUEUE.md)
 STUCK_ESCAPE = True  # kept: exp S 3.56 (QUEUE.md); the safety net for routing
-NAV_ROUTE = False  # navigation step 2 (arena-tested first)
+NAV_ROUTE = True  # exp R under test, on top of S (QUEUE.md): arena PGBKZ / MUWWU 0 / 1.5 s stuck, no zone damage
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE")
 
