@@ -16,3 +16,4 @@ expN = 3.52  # v9 exp N: HI + NPC_AWARE (commit 535f7fc "exp N: HI + npc_aware")
 expS = 3.56  # v9 exp S: N + STUCK_ESCAPE (commit 4fead84 "exp S: N + stuck escape"); +0.04 vs 3.52 (under +0.15) -> kept as new best by the user's call, both NPC_AWARE and STUCK_ESCAPE on; bar 3.56
 expL = 3.92  # v9 exp L: R + LOOT_SWEEP (commit a6ce0db "exp L: R + loot sweep"); +0.36 vs 3.56 -> winner, kept on; R (dee82ab, NAV_ROUTE) was not scored on its own, so R + L count together; bar 3.92
 expB1 = 3.81  # bracket B1: L + UPGRADES_OFFENSE (commit baea551); -0.11 vs 3.92 -> loser: off, defensive upgrades kept; bar stays 3.92
+expB5 = 4.06  # bracket B5: L + NO_MORTAR (commit ef170cc); +0.14 vs 3.92 (under +0.15) -> kept as new best by the user's call (clear mechanism); bar 4.06

@@ -88,10 +88,10 @@ STUCK_ESCAPE = True  # kept: exp S 3.56 (QUEUE.md); the safety net for routing
 NAV_ROUTE = True  # kept: exp R (scored with L: 3.92, QUEUE.md)
 LOOT_SWEEP = True  # winner: exp L 3.92 (with R, QUEUE.md)
 UPGRADES_OFFENSE = False  # bracket B1 3.81: below 3.92, off (QUEUE.md)
-AGGRO_CLOSE = False  # bracket B2
+AGGRO_CLOSE = True  # bracket B2 under test, on top of L + B5 (QUEUE.md)
 AGGRO_HOLD = False  # bracket B3
 HEAL_QUIET = False  # bracket B4
-NO_MORTAR = True  # bracket B5 under test, on top of L (QUEUE.md)
+NO_MORTAR = True  # kept: bracket B5 4.06 (QUEUE.md)
 V9_SWITCHES = ("DUEL", "LEAD_AIM", "LEARN_DODGE", "SQUAD_AVOID", "LIGHTNING", "LOOKAHEAD",
                "LASER_GUARD", "NO_CHIP", "AMBUSH", "NPC_AWARE", "STUCK_ESCAPE", "NAV_ROUTE", "LOOT_SWEEP",
                "UPGRADES_OFFENSE", "AGGRO_CLOSE", "AGGRO_HOLD", "HEAL_QUIET",
