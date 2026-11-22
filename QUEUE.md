@@ -31,7 +31,7 @@ Read this first after a /clear: it holds the rules, the order, where the code li
 | G | lookahead (`LOOKAHEAD`) | DUEL + LIGHTNING + LOOKAHEAD | 5ea055b | **3.23** | -0.23 vs 3.46 | loser: turned off |
 | HI | laser discipline (`LASER_GUARD` + `NO_CHIP`) | DUEL + LIGHTNING + LASER_GUARD + NO_CHIP | 663cf6f | **3.52** | +0.06 vs 3.46 | **kept as best (user's call; under +0.15)** |
 | N | npc_aware (`NPC_AWARE`) | HI + NPC_AWARE | 535f7fc | **3.52** | +0.00 vs 3.52 | no effect yet: **kept on** (user's call: harmless, should matter once navigation lets us roam) |
-| S | stuck escape (`STUCK_ESCAPE`, navigation step 1) | N + STUCK_ESCAPE | | | needs 3.67 | arena-tested first (branch `v9-stuck`) |
+| S | stuck escape (`STUCK_ESCAPE`, navigation step 1) | N + STUCK_ESCAPE | (exp S commit) | | needs 3.67 | arena MAZAE 1st / 5 kills, 0 s stuck, but the escape never triggered; merged on the navsim proof (user's call) |
 | J | ambush (`AMBUSH`) | best + AMBUSH | | | | |
 | K | rooftop (`ROOFTOP`, to build on a side branch) | best + ROOFTOP | | | | |
 
@@ -64,4 +64,5 @@ already is the combination of the winners.
   Arena: baseline VGYDJ 14th (a drone did 838 dmg); with N MNUCG 1st, AGTRR 3rd, but no drone came near us, so
   N went untested there. **Status: merged for step N.**
 
-Status: N scored 3.52 (kept on). Next: S, the stuck escape, after an arena match.
+Status: **S ready to submit** (DUEL + LIGHTNING + LASER_GUARD + NO_CHIP + NPC_AWARE + STUCK_ESCAPE). Next: navigation step 2
+(walkability grid + A*, ground layer, `NAV_ROUTE`) on branch `v9-nav`, arena-tested before it is queued.
